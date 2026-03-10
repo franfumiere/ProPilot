@@ -1,1 +1,1844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProPilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #fff;
+  --border: #e5e3db;
+  --text: #111;
+  --muted: #999;
+  --red: #d63030;
+  --red-bg: #fff0f0;
+  --red-border: #fbc8c8;
+  --yellow: #c47f00;
+  --yellow-bg: #fffbf0;
+  --yellow-border: #f5dfa0;
+  --green: #1e7e4a;
+  --green-bg: #f0faf4;
+  --green-border: #b2e4c8;
+  --blue: #1a5fb4;
+  --blue-bg: #f0f5ff;
+  --purple: #6b3fa0;
+  --purple-bg: #f5f0ff;
+  --sidebar: #18181b;
+  --r: 9px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+/* ── LOGIN ── */
+.login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); position:fixed; inset:0; z-index:1000; }
+.login-box { background:var(--surface); border-radius:14px; padding:34px; width:370px; max-width:95vw; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+.login-logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; margin-bottom:5px; }
+.login-logo em { color:#c8f55a; font-style:normal; background:var(--sidebar); padding:1px 6px; border-radius:5px; }
+.login-sub { font-size:13px; color:var(--muted); margin-bottom:22px; }
+.fr { margin-bottom:12px; }
+.fr label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.fr input, .fr select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:9px 11px; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); outline:none; transition:border-color .12s; }
+.fr input:focus { border-color:var(--text); }
+.login-divider { text-align:center; font-size:12px; color:var(--muted); margin:14px 0; }
+.demo-accounts { display:flex; flex-direction:column; gap:7px; }
+.demo-btn { display:flex; align-items:center; gap:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; cursor:pointer; transition:border-color .12s; }
+.demo-btn:hover { border-color:var(--text); }
+.demo-av { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:11px; flex-shrink:0; }
+.demo-name { font-weight:600; font-size:13px; }
+.demo-detail { font-size:11px; color:var(--muted); }
+
+/* ── APP ── */
+.app { display:none; min-height:100vh; }
+.app.on { display:flex; }
+
+/* ── SIDEBAR ── */
+.sb { width:190px; background:var(--sidebar); min-height:100vh; position:fixed; top:0; left:0; bottom:0; display:flex; flex-direction:column; padding:22px 0; z-index:50; }
+.sb-logo { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; color:#fff; padding:0 18px 24px; }
+.sb-logo em { color:#c8f55a; font-style:normal; }
+.sb-item { display:flex; align-items:center; gap:9px; padding:10px 18px; color:rgba(255,255,255,.4); font-size:13px; font-weight:500; cursor:pointer; border-left:3px solid transparent; transition:all .12s; position:relative; }
+.sb-item:hover { color:rgba(255,255,255,.8); background:rgba(255,255,255,.04); }
+.sb-item.on { color:#fff; border-left-color:#c8f55a; background:rgba(255,255,255,.07); }
+.sb-badge { margin-left:auto; font-size:10px; font-weight:700; padding:2px 6px; border-radius:20px; }
+.sb-badge.red { background:var(--red); color:#fff; }
+.sb-badge.yel { background:var(--yellow); color:#fff; }
+.sb-foot { margin-top:auto; padding:14px 18px; border-top:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; }
+.sb-av { width:26px; height:26px; border-radius:50%; background:#c8f55a; color:#000; font-family:'Syne',sans-serif; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sb-name { font-size:12px; color:rgba(255,255,255,.65); }
+.sb-logout { font-size:11px; color:rgba(255,255,255,.3); cursor:pointer; background:none; border:none; font-family:'DM Sans',sans-serif; }
+.sb-logout:hover { color:rgba(255,255,255,.7); }
+
+/* ── MAIN ── */
+.main { margin-left:190px; flex:1; padding:26px 30px; max-width:960px; }
+.view { display:none; }
+.view.on { display:block; animation:fi .15s ease; }
+@keyframes fi { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── PAGE HEADER ── */
+.ph { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+.ph h1 { font-family:'Syne',sans-serif; font-size:21px; font-weight:800; letter-spacing:-.4px; }
+.ph p { font-size:12px; color:var(--muted); margin-top:3px; }
+
+/* ── BTN ── */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:9px 16px; border-radius:7px; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; transition:all .12s; white-space:nowrap; }
+.btn-dark { background:var(--text); color:#fff; }
+.btn-dark:hover { background:#333; }
+.btn-ghost { background:transparent; color:var(--text); border:1px solid var(--border); }
+.btn-ghost:hover { border-color:#888; }
+.btn-green { background:var(--green); color:#fff; }
+.btn-green:hover { background:#166038; }
+.btn-xs { padding:4px 9px; font-size:11.5px; border-radius:6px; }
+.btn-sm { padding:6px 12px; font-size:12.5px; }
+
+/* ══════════════════════════════════════
+   RECORDATORIO CARD — el elemento central
+══════════════════════════════════════ */
+.rec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: box-shadow .12s;
+}
+.rec-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+.rec-card.urg { border-left: 4px solid var(--red); }
+.rec-card.war { border-left: 4px solid var(--yellow); }
+.rec-card.ok  { border-left: 4px solid var(--green); }
+.rec-card.done-card { opacity: .5; }
+
+.rec-top {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px 10px;
+}
+.rec-urgency {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; padding: 2px 7px; border-radius: 20px;
+  flex-shrink: 0;
+}
+.rec-urgency.urg { background: var(--red-bg); color: var(--red); border:1px solid var(--red-border); }
+.rec-urgency.war { background: var(--yellow-bg); color: var(--yellow); border:1px solid var(--yellow-border); }
+.rec-urgency.ok  { background: var(--green-bg); color: var(--green); border:1px solid var(--green-border); }
+.rec-who-wrap { flex: 1; }
+.rec-who { font-weight: 700; font-size: 14px; }
+.rec-why { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.rec-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+.rec-actions {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px 12px;
+  flex-wrap: wrap;
+}
+.rec-actions .divider { width:1px; height:16px; background:var(--border); margin:0 2px; }
+
+/* resolved state */
+.rec-card.done-card .rec-who { text-decoration: line-through; }
+
+/* ── DASH LAYOUT ── */
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-col {}
+
+/* ── SECTION HEADER ── */
+.sec-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sec-title { font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:700; color:var(--muted); }
+.sec-count { font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px; }
+.sec-count.red { background:var(--red-bg); color:var(--red); }
+.sec-count.yel { background:var(--yellow-bg); color:var(--yellow); }
+.sec-count.grn { background:var(--green-bg); color:var(--green); }
+
+/* ── STATS ROW ── */
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:11px; margin-bottom:20px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; }
+.stat-l { font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700; margin-bottom:4px; }
+.stat-v { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; letter-spacing:-1px; }
+.stat-s { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* ── TABLE ── */
+.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:visible; }
+.tbl { width:100%; border-collapse:collapse; }
+.tbl th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--border); }
+.tbl td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tbody tr:hover td { background:var(--bg); cursor:pointer; }
+
+/* ── CHIPS ── */
+.chip { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; cursor:pointer; }
+.c-nuevo  { background:var(--blue-bg);   color:var(--blue); }
+.c-cont   { background:var(--green-bg);  color:var(--green); }
+.c-visita { background:var(--yellow-bg); color:var(--yellow); }
+.c-oferta { background:var(--purple-bg); color:var(--purple); }
+.c-frio   { background:var(--red-bg);    color:var(--red); }
+
+/* ── STATUS DROPDOWN ── */
+.status-sel { position:relative; display:inline-block; }
+.status-dd { display:none; position:absolute; top:calc(100% + 3px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:0 8px 20px rgba(0,0,0,.1); z-index:200; min-width:130px; padding:3px; }
+.status-sel.open .status-dd { display:block; }
+.status-opt { padding:6px 9px; border-radius:6px; font-size:12.5px; cursor:pointer; }
+.status-opt:hover { background:var(--bg); }
+
+/* ── PIPELINE STAGES ── */
+.stages { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; margin-bottom:16px; }
+.stage { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:11px 13px; }
+.stage-l { font-size:10px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); font-weight:700; margin-bottom:3px; }
+.stage-n { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; }
+
+/* ── SEARCH ── */
+.srch { display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:6px 10px; }
+.srch input { background:none; border:none; outline:none; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); width:140px; }
+.srch input::placeholder { color:var(--muted); }
+
+/* ── PANEL ── */
+.panel { display:none; position:fixed; right:0; top:0; bottom:0; width:340px; background:var(--surface); border-left:1px solid var(--border); z-index:300; overflow-y:auto; box-shadow:-4px 0 16px rgba(0,0,0,.08); }
+.panel.on { display:block; animation:sl .16s ease; }
+@keyframes sl { from{transform:translateX(16px);opacity:0} to{transform:translateX(0);opacity:1} }
+.panel-head { padding:18px 18px 14px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); }
+.panel-close { float:right; background:none; border:none; font-size:15px; cursor:pointer; color:var(--muted); }
+.panel-name { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; margin-bottom:2px; margin-top:4px; }
+.panel-sub { font-size:12px; color:var(--muted); margin-bottom:11px; }
+.panel-quick { display:flex; gap:6px; flex-wrap:wrap; }
+.panel-body { padding:16px 18px; }
+.p-section { margin-bottom:16px; }
+.p-label { font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700; margin-bottom:7px; }
+.p-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.p-row:last-child { border-bottom:none; }
+.p-row span:first-child { color:var(--muted); }
+.tl-item { display:flex; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12.5px; }
+.tl-item:last-child { border-bottom:none; }
+.tl-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.tl-dot.r{background:var(--red);} .tl-dot.y{background:var(--yellow);} .tl-dot.g{background:var(--green);}
+.tl-body { flex:1; line-height:1.4; }
+.tl-body small { color:var(--muted); font-size:11px; }
+
+/* ── MODAL ── */
+.modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:400; align-items:center; justify-content:center; }
+.modal-ov.on { display:flex; }
+.modal { background:var(--surface); border-radius:12px; padding:24px; width:420px; max-width:95vw; box-shadow:0 20px 50px rgba(0,0,0,.15); }
+.modal h2 { font-family:'Syne',sans-serif; font-size:17px; font-weight:800; margin-bottom:3px; }
+.modal-sub { font-size:12px; color:var(--muted); margin-bottom:16px; }
+.fl { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.mf { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+
+/* ── POSTPONE MODAL ── */
+.postpone-opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+.postpone-opt { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; cursor:pointer; font-size:13px; font-weight:500; transition:all .12s; }
+.postpone-opt:hover { border-color:var(--text); background:var(--surface); }
+.postpone-opt .opt-label { font-size:11px; color:var(--muted); display:block; margin-top:2px; }
+
+/* ── EMPTY STATE ── */
+.empty { text-align:center; padding:32px 20px; color:var(--muted); font-size:13px; }
+.empty .empty-icon { font-size:32px; margin-bottom:8px; }
+
+/* ── TOAST ── */
+.toast { position:fixed; bottom:20px; right:20px; background:var(--text); color:#fff; padding:9px 15px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; transform:translateY(50px); opacity:0; transition:all .22s; pointer-events:none; }
+.toast.on { transform:translateY(0); opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Pro<em>Pilot</em></div>
+    <div class="login-sub">CRM para brokers inmobiliarios</div>
+    <div id="login-error" style="display:none;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:7px;padding:8px 11px;font-size:12.5px;margin-bottom:12px"></div>
+    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
+    <div class="fr"><label>Contrasena</label><input type="password" id="login-password" placeholder="min. 6 caracteres"></div>
+    <button class="btn btn-dark" style="width:100%;margin-top:4px" onclick="doLogin()">Ingresar</button>
+    <div class="login-divider">no tenes cuenta?</div>
+    <button class="btn btn-ghost" style="width:100%" onclick="showRegister()">Crear cuenta nueva</button>
+    <div id="register-form" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      <div class="fr"><label>Tu nombre</label><input type="text" id="reg-name" placeholder="Ej: Mateo Garcia"></div>
+      <div class="fr"><label>Inmobiliaria</label><input type="text" id="reg-agency" placeholder="Ej: Garcia Propiedades"></div>
+      <button class="btn btn-dark" style="width:100%;margin-top:4px" onclick="doRegister()">Registrarme</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="app" id="appShell">
+  <aside class="sb">
+    <div class="sb-logo">Prop<em>Desk</em></div>
+    <div class="sb-item on" onclick="go('dash',this)"><span>◈</span> Dashboard</div>
+    <div class="sb-item"   onclick="go('leads',this)"><span>⚡</span> Leads <span class="sb-badge red">3</span></div>
+    <div class="sb-item"   onclick="go('recs',this)"><span>🔔</span> Recordatorios <span class="sb-badge red" id="sb-rec-count">5</span></div>
+    <div class="sb-foot">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="sb-av" id="sb-av">MG</div>
+        <div class="sb-name" id="sb-name">Mateo G.</div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ════════ DASHBOARD ════════ -->
+    <div class="view on" id="view-dash">
+      <div class="ph">
+        <div>
+          <h1 id="dash-greeting">Buenos días, Mateo 👋</h1>
+          <p>Miércoles 9 de marzo</p>
+        </div>
+        <button class="btn btn-dark btn-sm" onclick="openM('m-lead')">+ Nuevo lead</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-l">Leads activos</div><div class="stat-v">18</div><div class="stat-s">↑ 4 esta semana</div></div>
+        <div class="stat"><div class="stat-l">Recordatorios hoy</div><div class="stat-v" style="color:var(--red)">5</div><div class="stat-s">2 urgentes · 3 importantes</div></div>
+        <div class="stat"><div class="stat-l">Visitas esta semana</div><div class="stat-v" style="color:var(--green)">4</div><div class="stat-s">Sofía · Pablo · 2 más</div></div>
+      </div>
+
+      <!-- RECORDATORIOS en el dashboard — protagonistas -->
+      <div class="dash-grid">
+
+        <!-- COL IZQUIERDA: recordatorios -->
+        <div class="dash-col">
+          <div class="sec-head">
+            <span class="sec-title">🔔 Recordatorios de hoy</span>
+            <span class="sec-count red" id="dash-rec-count">5 pendientes</span>
+          </div>
+
+          <!-- urgentes -->
+          <div id="dash-recs-container">
+
+            <div class="rec-card urg" id="rc-romina">
+              <div class="rec-top">
+                <span class="rec-urgency urg">Urgente</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Romina Díaz</div>
+                  <div class="rec-why">Sin respuesta · 8 días</div>
+                </div>
+                <span class="rec-time">Hoy</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-romina')">✓ Resuelto</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPanel('romina')">Ver lead</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openStatusModal('romina')">Mover estado</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-romina')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card urg" id="rc-diego">
+              <div class="rec-top">
+                <span class="rec-urgency urg">Urgente</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Diego Sosa</div>
+                  <div class="rec-why">Nunca respondiste · 5 días</div>
+                </div>
+                <span class="rec-time">Hoy</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-diego')">✓ Resuelto</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPanel('diego')">Ver lead</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openStatusModal('diego')">Mover estado</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-diego')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card war" id="rc-menotti">
+              <div class="rec-top">
+                <span class="rec-urgency war">Importante</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Carlos Menotti</div>
+                  <div class="rec-why">Propietario · 32 días sin contacto · excl. vence en 18d</div>
+                </div>
+                <span class="rec-time">Esta semana</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-menotti')">✓ Resuelto</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-menotti')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card war" id="rc-pablo">
+              <div class="rec-top">
+                <span class="rec-urgency war">Importante</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Pablo Herrera</div>
+                  <div class="rec-why">Visitó hace 4 días · sin seguimiento</div>
+                </div>
+                <span class="rec-time">Esta semana</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-pablo')">✓ Resuelto</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPanel('pablo')">Ver lead</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openStatusModal('pablo')">Mover estado</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-pablo')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card war" id="rc-marta">
+              <div class="rec-top">
+                <span class="rec-urgency war">Importante</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">🎂 Marta López</div>
+                  <div class="rec-why">Propietaria · cumple en 5 días</div>
+                </div>
+                <span class="rec-time">14/03</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-marta')">✓ Resuelto</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-marta')">Posponer</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div style="margin-top:10px">
+            <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="go('recs', document.querySelectorAll('.sb-item')[2])">Ver todos los recordatorios →</button>
+          </div>
+        </div>
+
+        <!-- COL DERECHA: leads -->
+        <div class="dash-col">
+          <div class="sec-head">
+            <span class="sec-title">⚡ Leads activos</span>
+            <button class="btn btn-xs btn-ghost" onclick="go('leads', document.querySelectorAll('.sb-item')[1])">Ver todos</button>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Lead</th><th>Estado</th><th>Acc.</th></tr></thead>
+              <tbody>
+                <tr onclick="openPanel('martin')">
+                  <td><strong>Martín R.</strong><br><span style="font-size:11px;color:var(--muted)">2 amb. Villa Urquiza</span></td>
+                  <td><span class="chip c-nuevo">Nuevo</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('romina')">
+                  <td><strong>Romina D.</strong><br><span style="font-size:11px;color:var(--red)">⚠ 8 días sin resp.</span></td>
+                  <td><span class="chip c-frio">Frío</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('sofia')">
+                  <td><strong>Sofía V.</strong><br><span style="font-size:11px;color:var(--muted)">Casa Flores</span></td>
+                  <td><span class="chip c-visita">Visita</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('pablo')">
+                  <td><strong>Pablo H.</strong><br><span style="font-size:11px;color:var(--yellow)">4 días sin seguim.</span></td>
+                  <td><span class="chip c-cont">Contactado</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('laura')">
+                  <td><strong>Laura M.</strong><br><span style="font-size:11px;color:var(--muted)">Alquiler Núñez</span></td>
+                  <td><span class="chip c-oferta">Oferta 🔥</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('diego')">
+                  <td><strong>Diego S.</strong><br><span style="font-size:11px;color:var(--red)">⚠ 5 días sin resp.</span></td>
+                  <td><span class="chip c-nuevo">Nuevo</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════ LEADS ════════ -->
+    <div class="view" id="view-leads">
+      <div class="ph">
+        <div><h1>Leads</h1><p>18 activos · cambiá el estado directo desde la tabla</p></div>
+        <div style="display:flex;gap:9px;align-items:center">
+          <div class="srch"><span style="color:var(--muted);font-size:13px">🔍</span><input placeholder="Buscar..."></div>
+          <button class="btn btn-dark btn-sm" onclick="openM('m-lead')">+ Nuevo lead</button>
+        </div>
+      </div>
+      <div class="stages">
+        <div class="stage"><div class="stage-l">Nuevo</div><div class="stage-n" style="color:var(--blue)">4</div></div>
+        <div class="stage"><div class="stage-l">Contactado</div><div class="stage-n" style="color:var(--green)">6</div></div>
+        <div class="stage"><div class="stage-l">Visita</div><div class="stage-n" style="color:var(--yellow)">3</div></div>
+        <div class="stage"><div class="stage-l">En oferta</div><div class="stage-n" style="color:var(--purple)">2</div></div>
+        <div class="stage"><div class="stage-l">Frío</div><div class="stage-n" style="color:var(--red)">3</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="width:100%">
+          <thead><tr><th>Nombre</th><th>Busca</th><th>Fuente</th><th>Estado</th><th>Último contacto</th><th>Acciones</th></tr></thead>
+          <tbody>
+            <tr onclick="openPanel('martin')"><td><strong>Martín Rodríguez</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 2233-4455</span></td><td style="font-size:12px;color:var(--muted)">2 amb. Villa Urquiza</td><td style="font-size:12px;color:var(--muted)">ZonaProp</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-nuevo">Nuevo ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--muted)">Hace 2h</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('martin')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Llamada agendada ✅')">Llamar</button></div></td></tr>
+            <tr onclick="openPanel('romina')"><td><strong>Romina Díaz</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 5566-7788</span></td><td style="font-size:12px;color:var(--muted)">3 amb. Palermo</td><td style="font-size:12px;color:var(--muted)">Instagram</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-frio">Frío ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--red)">⚠ Hace 8 días</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('romina')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Llamada agendada ✅')">Llamar</button></div></td></tr>
+            <tr onclick="openPanel('sofia')"><td><strong>Sofía Varela</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 9900-1122</span></td><td style="font-size:12px;color:var(--muted)">Casa Flores</td><td style="font-size:12px;color:var(--muted)">Referido</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-visita">Visita ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--muted)">Ayer</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('sofia')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></div></td></tr>
+            <tr onclick="openPanel('pablo')"><td><strong>Pablo Herrera</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 3344-5566</span></td><td style="font-size:12px;color:var(--muted)">PH Caballito</td><td style="font-size:12px;color:var(--muted)">Argenprop</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-cont">Contactado ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--yellow)">4 días</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('pablo')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Seguimiento agendado ✅')">Agendar</button></div></td></tr>
+            <tr onclick="openPanel('laura')"><td><strong>Laura Méndez</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 7788-9900</span></td><td style="font-size:12px;color:var(--muted)">Alquiler Núñez</td><td style="font-size:12px;color:var(--muted)">WhatsApp</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-oferta">Oferta ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--muted)">Hoy</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('laura')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></div></td></tr>
+            <tr onclick="openPanel('diego')"><td><strong>Diego Sosa</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 1122-3344</span></td><td style="font-size:12px;color:var(--muted)">Monoamb. Almagro</td><td style="font-size:12px;color:var(--muted)">Mercado Libre</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-nuevo">Nuevo ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--red)">⚠ 5 días</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('diego')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Llamada agendada ✅')">Llamar</button></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ RECORDATORIOS (vista propia) ════════ -->
+    <div class="view" id="view-recs">
+      <div class="ph">
+        <div>
+          <h1>Recordatorios</h1>
+          <p>Generados automáticamente según actividad · resolvé, escribí o posponé desde acá</p>
+        </div>
+        <span id="recs-summary" style="font-size:13px;color:var(--muted);align-self:center"></span>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div class="sec-head"><span class="sec-title">🔴 Urgente</span></div>
+
+        <div class="rec-card urg" id="rv-romina">
+          <div class="rec-top">
+            <span class="rec-urgency urg">Urgente</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Romina Díaz</div>
+              <div class="rec-why">Sin respuesta · 8 días · 2 mensajes enviados sin reply</div>
+            </div>
+            <span class="rec-time">Hoy</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-romina')">✓ Resuelto</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPanel('romina')">Ver lead</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openStatusModal('romina')">Mover estado</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-romina')">Posponer</button>
+          </div>
+        </div>
+
+        <div class="rec-card urg" id="rv-diego">
+          <div class="rec-top">
+            <span class="rec-urgency urg">Urgente</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Diego Sosa</div>
+              <div class="rec-why">Nunca respondiste · 5 días · Mercado Libre</div>
+            </div>
+            <span class="rec-time">Hoy</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-diego')">✓ Resuelto</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPanel('diego')">Ver lead</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openStatusModal('diego')">Mover estado</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-diego')">Posponer</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div class="sec-head"><span class="sec-title">🟡 Importante</span></div>
+
+        <div class="rec-card war" id="rv-menotti">
+          <div class="rec-top">
+            <span class="rec-urgency war">Importante</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Carlos Menotti — Propietario</div>
+              <div class="rec-why">32 días sin contacto · exclusividad vence el 27/03</div>
+            </div>
+            <span class="rec-time">Esta semana</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-menotti')">✓ Resuelto</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-menotti')">Posponer</button>
+          </div>
+        </div>
+
+        <div class="rec-card war" id="rv-pablo">
+          <div class="rec-top">
+            <span class="rec-urgency war">Importante</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Pablo Herrera</div>
+              <div class="rec-why">Visitó hace 4 días · sin seguimiento post-visita</div>
+            </div>
+            <span class="rec-time">Esta semana</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-pablo')">✓ Resuelto</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPanel('pablo')">Ver lead</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openStatusModal('pablo')">Mover estado</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-pablo')">Posponer</button>
+          </div>
+        </div>
+
+        <div class="rec-card war" id="rv-marta">
+          <div class="rec-top">
+            <span class="rec-urgency war">Importante</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">🎂 Marta López</div>
+              <div class="rec-why">Propietaria · cumple el 14/03 · oportunidad de contacto</div>
+            </div>
+            <span class="rec-time">14/03</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-marta')">✓ Resuelto</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-marta')">Posponer</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-head"><span class="sec-title">🟢 Programados</span></div>
+        <div class="rec-card ok">
+          <div class="rec-top">
+            <span class="rec-urgency ok">Programado</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Martín Rodríguez</div>
+              <div class="rec-why">Seguimiento automático si no responde</div>
+            </div>
+            <span class="rec-time">12/03</span>
+          </div>
+        </div>
+        <div class="rec-card ok">
+          <div class="rec-top">
+            <span class="rec-urgency ok">Programado</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Roberto Núñez — Propietario</div>
+              <div class="rec-why">Contacto mensual automático</div>
+            </div>
+            <span class="rec-time">25/03</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════ PANEL LATERAL ════ -->
+<div class="panel" id="panel">
+  <div class="panel-head">
+    <button class="panel-close" onclick="closePanel()">✕</button>
+    <div id="p-chip"></div>
+    <div class="panel-name" id="p-name"></div>
+    <div class="panel-sub" id="p-sub"></div>
+    <div class="panel-quick" id="p-quick"></div>
+  </div>
+  <div class="panel-body" id="p-body"></div>
+</div>
+
+<!-- ════ MODAL NUEVO LEAD ════ -->
+<div class="modal-ov" id="m-lead">
+  <div class="modal">
+    <h2>Nuevo Lead</h2>
+    <div class="modal-sub">El seguimiento automatico se activa al guardar</div>
+    <div class="fr"><label>Nombre</label><input id="nl-nombre" placeholder="Juan Perez"></div>
+    <div class="fl">
+      <div class="fr"><label>Telefono</label><input id="nl-tel" placeholder="+54 9 11 ..."></div>
+      <div class="fr"><label>Fuente</label><select id="nl-fuente"><option>ZonaProp</option><option>Argenprop</option><option>Instagram</option><option>Mercado Libre</option><option>WhatsApp</option><option>Referido</option><option>Otro</option></select></div>
+    </div>
+    <div class="fr"><label>Que busca?</label><input id="nl-busca" placeholder="Ej: 3 amb. Palermo, hasta USD 140.000"></div>
+    <div style="background:#f5f9ff;border:1px solid #dbeafe;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12px;color:#1a5fb4;line-height:1.5">
+      Este es un negocio de relaciones. Conoce a tu cliente mas alla de la operacion y contactalo en fechas importantes para el.
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Fecha de cumpleanos</label><input type="date" id="nl-birthday"></div>
+      <div class="fr"><label>De que cuadro es?</label><input id="nl-club" placeholder="Ej: Boca, River..."></div>
+    </div>
+    <div class="fr"><label>Datos personales relevantes</label><input id="nl-notas" placeholder="Ej: tiene 2 hijos, le gusta el tennis..."></div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('m-lead')">Cancelar</button>
+      <button class="btn btn-dark" onclick="saveLead()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL MOVER ESTADO ════ -->
+<div class="modal-ov" id="m-status">
+  <div class="modal" style="max-width:320px">
+    <h2>Mover estado</h2>
+    <div class="modal-sub" id="m-status-who"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="closeM('m-status');toast('Estado → Contactado ✅')"><span class="chip c-cont" style="margin-right:8px">Contactado</span> Ya respondió</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="closeM('m-status');toast('Estado → Visita pautada ✅')"><span class="chip c-visita" style="margin-right:8px">Visita</span> Coordinó visita</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="closeM('m-status');toast('Estado → En oferta ✅')"><span class="chip c-oferta" style="margin-right:8px">En oferta</span> Hizo una oferta</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;color:var(--red)" onclick="closeM('m-status');toast('Estado → Frío ✅')"><span class="chip c-frio" style="margin-right:8px">Frío</span> No responde más</button>
+    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('m-status')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- ════ MODAL POSPONER ════ -->
+<div class="modal-ov" id="m-postpone">
+  <div class="modal" style="max-width:340px">
+    <h2>Posponer recordatorio</h2>
+    <div class="modal-sub">¿Cuándo querés que vuelva a aparecer?</div>
+    <div class="postpone-opts">
+      <div class="postpone-opt" onclick="doPostpone('Mañana')">Mañana<span class="opt-label">10/03</span></div>
+      <div class="postpone-opt" onclick="doPostpone('En 3 días')">En 3 días<span class="opt-label">12/03</span></div>
+      <div class="postpone-opt" onclick="doPostpone('La semana que viene')">La semana que viene<span class="opt-label">16/03</span></div>
+      <div class="postpone-opt" onclick="doPostpone('En 2 semanas')">En 2 semanas<span class="opt-label">23/03</span></div>
+    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('m-postpone')">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+// ── SUPABASE ──
+const SUPA_URL = 'https://oiblovowxzbfcjapokcw.supabase.co';
+const SUPA_KEY = 'sb_publishable_gNNUvK6kQQqisFAwYpFEHA_DfKVvB1e';
+const { createClient } = supabase;
+const sb = createClient(SUPA_URL, SUPA_KEY);
+
+// ── ESTADO GLOBAL ──
+let currentUser = null;
+let leadsData = [];
+
+// ── INIT ──
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    enterApp();
+  }
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') { currentUser = session.user; enterApp(); }
+    if (event === 'SIGNED_OUT') { currentUser = null; showLogin(); }
+  });
+}
+
+// ── AUTH ──
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if (!email || !pass) return showError('Completa email y contrasena');
+  setLoginLoading(true);
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  setLoginLoading(false);
+  if (error) showError('Email o contrasena incorrectos');
+}
+
+async function doRegister() {
+  const email  = document.getElementById('login-email').value.trim();
+  const pass   = document.getElementById('login-password').value;
+  const name   = document.getElementById('reg-name').value.trim();
+  const agency = document.getElementById('reg-agency').value.trim();
+  if (!email || !pass || !name) return showError('Completa todos los campos');
+  if (pass.length < 6) return showError('La contrasena debe tener al menos 6 caracteres');
+  setLoginLoading(true);
+  const { error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { name, agency } }
+  });
+  setLoginLoading(false);
+  if (error) showError(error.message);
+  else showError('Cuenta creada! Revisa tu email para confirmar (o ingresa directamente si el email de confirmacion esta deshabilitado)');
+}
+
+function doLogout() {
+  sb.auth.signOut();
+}
+
+function showError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function setLoginLoading(on) {
+  const btn = document.querySelector('#loginScreen .btn-dark');
+  if (btn) btn.textContent = on ? 'Cargando...' : 'Ingresar';
+}
+
+function showRegister() {
+  const f = document.getElementById('register-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function showLogin() {
+  document.getElementById('appShell').classList.remove('on');
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function enterApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('on');
+  const meta = currentUser?.user_metadata || {};
+  const name = meta.name || currentUser?.email?.split('@')[0] || 'Usuario';
+  const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('sb-av').textContent = initials;
+  document.getElementById('sb-name').textContent = name.split(' ')[0];
+  document.getElementById('dash-greeting').textContent = 'Hola, ' + name.split(' ')[0] + '!';
+  loadLeads();
+  updateRecCount();
+}
+
+// ── LEADS ──
+async function loadLeads() {
+  const { data, error } = await sb.from('leads').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  leadsData = data || [];
+  renderLeadsTable();
+  updateStageCount();
+}
+
+function renderLeadsTable() {
+  const tbody = document.querySelector('#view-leads .tbl tbody');
+  if (!tbody) return;
+  if (leadsData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay leads todavia. Crea el primero!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = leadsData.map(l => {
+    const cls = estadoClass(l.estado);
+    const tiempo = timeSince(l.ultimo_contacto);
+    const tiempoColor = diasDesde(l.ultimo_contacto) > 3 ? 'color:var(--red)' : 'color:var(--muted)';
+    return `<tr onclick="openPanelLead('${l.id}')">
+      <td><strong>${l.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">${l.telefono||''}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${l.busca||''}</td>
+      <td style="font-size:12px;color:var(--muted)">${l.fuente||''}</td>
+      <td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)" data-lead-id="${l.id}">
+        <span class="chip ${cls}">${l.estado} ▾</span>
+        <div class="status-dd">
+          ${['Nuevo','Contactado','Visita','Oferta','Frio'].map(s=>`<div class="status-opt" onclick="updateEstado(event,'${l.id}','${s}')">${s}</div>`).join('')}
+        </div>
+      </div></td>
+      <td style="font-size:12px;${tiempoColor}">${tiempo}</td>
+      <td onclick="event.stopPropagation()"><div style="display:flex;gap:5px">
+        <button class="btn btn-xs btn-dark" onclick="openPanelLead('${l.id}')">Ver</button>
+        <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto!')">Escribir</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStageCount() {
+  const counts = { Nuevo:0, Contactado:0, Visita:0, Oferta:0, Frio:0 };
+  leadsData.forEach(l => { if (counts[l.estado] !== undefined) counts[l.estado]++; });
+  const stages = document.querySelectorAll('#view-leads .stage');
+  const keys = Object.keys(counts);
+  stages.forEach((s,i) => { const n = s.querySelector('.stage-n'); if(n) n.textContent = counts[keys[i]] || 0; });
+  // update sidebar badge
+  const active = leadsData.filter(l => l.estado !== 'Frio').length;
+  const badge = document.querySelector('.sb-item:nth-child(2) .sb-badge');
+  if (badge) badge.textContent = active;
+}
+
+async function saveLead() {
+  const nombre  = document.getElementById('nl-nombre').value.trim();
+  const tel     = document.getElementById('nl-tel').value.trim();
+  const fuente  = document.getElementById('nl-fuente').value;
+  const busca   = document.getElementById('nl-busca').value.trim();
+  if (!nombre) return toast('El nombre es obligatorio');
+  const club    = document.getElementById('nl-club')?.value.trim() || '';
+  const bday    = document.getElementById('nl-birthday')?.value || null;
+  const notasp  = document.getElementById('nl-notas')?.value.trim() || '';
+  const notasFull = [club ? 'Cuadro: ' + club : '', notasp].filter(Boolean).join(' · ');
+
+  const { data, error } = await sb.from('leads').insert([{
+    nombre, telefono: tel, fuente, busca,
+    estado: 'Nuevo',
+    ultimo_contacto: new Date().toISOString(),
+    notas: notasFull || null,
+    user_id: currentUser.id
+  }]).select();
+  if (error) { toast('Error al guardar'); console.error(error); return; }
+  closeM('m-lead');
+  toast('Lead creado - seguimiento activado!');
+  loadLeads();
+}
+
+async function updateEstado(e, leadId, nuevoEstado) {
+  e.stopPropagation();
+  const sel = e.target.closest('.status-sel');
+  if (sel) sel.classList.remove('open');
+  await sb.from('leads').update({ estado: nuevoEstado, ultimo_contacto: new Date().toISOString() }).eq('id', leadId);
+  toast('Estado actualizado!');
+  loadLeads();
+}
+
+function openPanelLead(id) {
+  const l = leadsData.find(x => x.id === id);
+  if (!l) return;
+  const cls = estadoClass(l.estado);
+  document.getElementById('p-chip').innerHTML = `<span class="chip ${cls}">${l.estado}</span>`;
+  document.getElementById('p-name').textContent = l.nombre;
+  document.getElementById('p-sub').textContent = (l.fuente||'') + ' · ' + timeSince(l.created_at);
+  document.getElementById('p-quick').innerHTML = `
+    <button class="btn btn-dark btn-sm" onclick="toast('WhatsApp abierto!')">Escribir</button>
+    <button class="btn btn-ghost btn-sm" onclick="toast('Llamada agendada!')">Llamar</button>
+  `;
+  document.getElementById('p-body').innerHTML = `
+    <div class="p-section">
+      <div class="p-label">Datos</div>
+      <div class="p-row"><span>Telefono</span><span>${l.telefono||'No cargado'}</span></div>
+      <div class="p-row"><span>Busca</span><span>${l.busca||'No especificado'}</span></div>
+      <div class="p-row"><span>Fuente</span><span>${l.fuente||''}</span></div>
+      <div class="p-row"><span>Estado</span><span>${l.estado}</span></div>
+      <div class="p-row"><span>Ultimo contacto</span><span>${timeSince(l.ultimo_contacto)}</span></div>
+    </div>
+    ${l.notas ? `<div class="p-section"><div class="p-label">Notas</div><p style="font-size:13px;line-height:1.5">${l.notas}</p></div>` : ''}
+  `;
+  document.getElementById('panel').classList.add('on');
+}
+
+// ── HELPERS ──
+function estadoClass(e) {
+  const m = { 'Nuevo':'c-nuevo','Contactado':'c-cont','Visita':'c-visita','Oferta':'c-oferta','Frio':'c-frio' };
+  return m[e] || 'c-nuevo';
+}
+
+function timeSince(dateStr) {
+  if (!dateStr) return '';
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
+  if (diff < 60) return 'Hace ' + diff + 'm';
+  if (diff < 1440) return 'Hace ' + Math.floor(diff/60) + 'h';
+  const days = Math.floor(diff/1440);
+  return days === 1 ? 'Ayer' : 'Hace ' + days + ' dias';
+}
+
+function diasDesde(dateStr) {
+  if (!dateStr) return 0;
+  return Math.floor((Date.now() - new Date(dateStr)) / 86400000);
+}
+
+// ── NAV ──
+function go(id, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('on'));
+  document.getElementById('view-' + id).classList.add('on');
+  if (el) el.classList.add('on');
+  closePanel();
+  if (id === 'leads') loadLeads();
+}
+
+// ── MODAL ──
+function openM(id) { document.getElementById(id).classList.add('on'); }
+function closeM(id) { document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('.modal-ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); }));
+
+// ── TOAST ──
+function toast(msg) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg; el.classList.add('on');
+  setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+// ── STATUS DROPDOWN ──
+function toggleDD(el) { el.classList.toggle('open'); }
+document.addEventListener('click', () => {
+  document.querySelectorAll('.status-sel.open').forEach(s => s.classList.remove('open'));
+});
+
+// ── RECORDATORIOS (logica demo por ahora) ──
+let pendingCount = 5;
+function resolveRec(id) {
+  ['rc-','rv-'].forEach(prefix => {
+    const el = document.getElementById(prefix + id.split('-')[1]);
+    if (el) el.classList.add('done-card');
+  });
+  const el = document.getElementById(id);
+  if (el) el.classList.add('done-card');
+  pendingCount = Math.max(0, pendingCount - 1);
+  updateRecCount();
+  toast('Recordatorio resuelto!');
+}
+
+function updateRecCount() {
+  const label = pendingCount > 0 ? pendingCount + ' pendientes' : 'Todo al dia!';
+  const countEl = document.getElementById('dash-rec-count');
+  if (countEl) { countEl.textContent = label; countEl.className = 'sec-count ' + (pendingCount > 0 ? 'red' : 'grn'); }
+  const badge = document.getElementById('sb-rec-count');
+  if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? '' : 'none'; }
+}
+
+let currentPostponeId = null;
+function openPostpone(id) { currentPostponeId = id; openM('m-postpone'); }
+function doPostpone(when) {
+  closeM('m-postpone');
+  if (currentPostponeId) {
+    ['rc-','rv-'].forEach(prefix => {
+      const el = document.getElementById(prefix + currentPostponeId.split('-')[1]);
+      if (el) el.style.opacity = '.4';
+    });
+    const el = document.getElementById(currentPostponeId);
+    if (el) el.style.opacity = '.4';
+  }
+  toast('Pospuesto para ' + when);
+}
+
+let currentStatusLead = null;
+function openStatusModal(k) { currentStatusLead = k; openM('m-status'); }
+
+// ── PANEL (demo leads) ──
+const leadsDemo = {
+  romina: { name:'Romina Diaz', sub:'Compradora · Instagram · hace 8 dias', chip:'<span class="chip c-frio">Frio</span>', data:[['Telefono','+54 9 11 5566-7788'],['Busca','3 amb. Palermo'],['Fuente','Instagram']], tl:[{c:'g',t:'Hace 8 dias',d:'Primer contacto'},{c:'r',t:'Hoy',d:'8 dias sin respuesta'}] },
+  pablo:  { name:'Pablo Herrera', sub:'Comprador · Argenprop', chip:'<span class="chip c-cont">Contactado</span>', data:[['Telefono','+54 9 11 3344-5566'],['Busca','PH Caballito'],['Fuente','Argenprop']], tl:[{c:'g',t:'Hace 4 dias',d:'Visito PH Avellaneda 900'},{c:'r',t:'Hoy',d:'Sin seguimiento post-visita'}] },
+  diego:  { name:'Diego Sosa', sub:'Comprador · Mercado Libre', chip:'<span class="chip c-nuevo">Nuevo</span>', data:[['Telefono','+54 9 11 1122-3344'],['Busca','Monoamb. Almagro'],['Fuente','Mercado Libre']], tl:[{c:'g',t:'Hace 5 dias',d:'Consulto por monoamb.'},{c:'r',t:'Hoy',d:'5 dias sin respuesta'}] }
+};
+
+function openPanel(key) {
+  const d = leadsDemo[key]; if (!d) return;
+  document.getElementById('p-chip').innerHTML = d.chip;
+  document.getElementById('p-name').textContent = d.name;
+  document.getElementById('p-sub').textContent = d.sub;
+  document.getElementById('p-quick').innerHTML = `<button class="btn btn-dark btn-sm" onclick="toast('WhatsApp abierto!')">Escribir</button><button class="btn btn-ghost btn-sm" onclick="openStatusModal('${key}')">Mover estado</button>`;
+  const rows = d.data.map(r=>`<div class="p-row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  const tl = d.tl.map(t=>`<div class="tl-item"><div class="tl-dot ${t.c}"></div><div class="tl-body">${t.d}<br><small>${t.t}</small></div></div>`).join('');
+  document.getElementById('p-body').innerHTML = `<div class="p-section"><div class="p-label">Datos</div>${rows}</div><div class="p-section"><div class="p-label">Historial</div>${tl}</div>`;
+  document.getElementById('panel').classList.add('on');
+}
+function closePanel() { document.getElementById('panel').classList.remove('on'); }
+
+// ── START ──
+init();
+</script>
+<style>
+:root {
+  --bg: #f5f4f0;
+  --surface: #fff;
+  --border: #e5e3db;
+  --text: #111;
+  --muted: #999;
+  --red: #d63030;
+  --red-bg: #fff0f0;
+  --red-border: #fbc8c8;
+  --yellow: #c47f00;
+  --yellow-bg: #fffbf0;
+  --yellow-border: #f5dfa0;
+  --green: #1e7e4a;
+  --green-bg: #f0faf4;
+  --green-border: #b2e4c8;
+  --blue: #1a5fb4;
+  --blue-bg: #f0f5ff;
+  --purple: #6b3fa0;
+  --purple-bg: #f5f0ff;
+  --sidebar: #18181b;
+  --r: 9px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+/* ── LOGIN ── */
+.login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); position:fixed; inset:0; z-index:1000; }
+.login-box { background:var(--surface); border-radius:14px; padding:34px; width:370px; max-width:95vw; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+.login-logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; margin-bottom:5px; }
+.login-logo em { color:#c8f55a; font-style:normal; background:var(--sidebar); padding:1px 6px; border-radius:5px; }
+.login-sub { font-size:13px; color:var(--muted); margin-bottom:22px; }
+.fr { margin-bottom:12px; }
+.fr label { display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.fr input, .fr select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:9px 11px; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); outline:none; transition:border-color .12s; }
+.fr input:focus { border-color:var(--text); }
+.login-divider { text-align:center; font-size:12px; color:var(--muted); margin:14px 0; }
+.demo-accounts { display:flex; flex-direction:column; gap:7px; }
+.demo-btn { display:flex; align-items:center; gap:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; cursor:pointer; transition:border-color .12s; }
+.demo-btn:hover { border-color:var(--text); }
+.demo-av { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Syne',sans-serif; font-weight:800; font-size:11px; flex-shrink:0; }
+.demo-name { font-weight:600; font-size:13px; }
+.demo-detail { font-size:11px; color:var(--muted); }
+
+/* ── APP ── */
+.app { display:none; min-height:100vh; }
+.app.on { display:flex; }
+
+/* ── SIDEBAR ── */
+.sb { width:190px; background:var(--sidebar); min-height:100vh; position:fixed; top:0; left:0; bottom:0; display:flex; flex-direction:column; padding:22px 0; z-index:50; }
+.sb-logo { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; color:#fff; padding:0 18px 24px; }
+.sb-logo em { color:#c8f55a; font-style:normal; }
+.sb-item { display:flex; align-items:center; gap:9px; padding:10px 18px; color:rgba(255,255,255,.4); font-size:13px; font-weight:500; cursor:pointer; border-left:3px solid transparent; transition:all .12s; position:relative; }
+.sb-item:hover { color:rgba(255,255,255,.8); background:rgba(255,255,255,.04); }
+.sb-item.on { color:#fff; border-left-color:#c8f55a; background:rgba(255,255,255,.07); }
+.sb-badge { margin-left:auto; font-size:10px; font-weight:700; padding:2px 6px; border-radius:20px; }
+.sb-badge.red { background:var(--red); color:#fff; }
+.sb-badge.yel { background:var(--yellow); color:#fff; }
+.sb-foot { margin-top:auto; padding:14px 18px; border-top:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; }
+.sb-av { width:26px; height:26px; border-radius:50%; background:#c8f55a; color:#000; font-family:'Syne',sans-serif; font-weight:800; font-size:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sb-name { font-size:12px; color:rgba(255,255,255,.65); }
+.sb-logout { font-size:11px; color:rgba(255,255,255,.3); cursor:pointer; background:none; border:none; font-family:'DM Sans',sans-serif; }
+.sb-logout:hover { color:rgba(255,255,255,.7); }
+
+/* ── MAIN ── */
+.main { margin-left:190px; flex:1; padding:26px 30px; max-width:960px; }
+.view { display:none; }
+.view.on { display:block; animation:fi .15s ease; }
+@keyframes fi { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── PAGE HEADER ── */
+.ph { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+.ph h1 { font-family:'Syne',sans-serif; font-size:21px; font-weight:800; letter-spacing:-.4px; }
+.ph p { font-size:12px; color:var(--muted); margin-top:3px; }
+
+/* ── BTN ── */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:9px 16px; border-radius:7px; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; transition:all .12s; white-space:nowrap; }
+.btn-dark { background:var(--text); color:#fff; }
+.btn-dark:hover { background:#333; }
+.btn-ghost { background:transparent; color:var(--text); border:1px solid var(--border); }
+.btn-ghost:hover { border-color:#888; }
+.btn-green { background:var(--green); color:#fff; }
+.btn-green:hover { background:#166038; }
+.btn-xs { padding:4px 9px; font-size:11.5px; border-radius:6px; }
+.btn-sm { padding:6px 12px; font-size:12.5px; }
+
+/* ══════════════════════════════════════
+   RECORDATORIO CARD — el elemento central
+══════════════════════════════════════ */
+.rec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: box-shadow .12s;
+}
+.rec-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+.rec-card.urg { border-left: 4px solid var(--red); }
+.rec-card.war { border-left: 4px solid var(--yellow); }
+.rec-card.ok  { border-left: 4px solid var(--green); }
+.rec-card.done-card { opacity: .5; }
+
+.rec-top {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px 10px;
+}
+.rec-urgency {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; padding: 2px 7px; border-radius: 20px;
+  flex-shrink: 0;
+}
+.rec-urgency.urg { background: var(--red-bg); color: var(--red); border:1px solid var(--red-border); }
+.rec-urgency.war { background: var(--yellow-bg); color: var(--yellow); border:1px solid var(--yellow-border); }
+.rec-urgency.ok  { background: var(--green-bg); color: var(--green); border:1px solid var(--green-border); }
+.rec-who-wrap { flex: 1; }
+.rec-who { font-weight: 700; font-size: 14px; }
+.rec-why { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.rec-time { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+.rec-actions {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 14px 12px;
+  flex-wrap: wrap;
+}
+.rec-actions .divider { width:1px; height:16px; background:var(--border); margin:0 2px; }
+
+/* resolved state */
+.rec-card.done-card .rec-who { text-decoration: line-through; }
+
+/* ── DASH LAYOUT ── */
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.dash-col {}
+
+/* ── SECTION HEADER ── */
+.sec-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sec-title { font-size:11px; text-transform:uppercase; letter-spacing:1px; font-weight:700; color:var(--muted); }
+.sec-count { font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px; }
+.sec-count.red { background:var(--red-bg); color:var(--red); }
+.sec-count.yel { background:var(--yellow-bg); color:var(--yellow); }
+.sec-count.grn { background:var(--green-bg); color:var(--green); }
+
+/* ── STATS ROW ── */
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:11px; margin-bottom:20px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; }
+.stat-l { font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700; margin-bottom:4px; }
+.stat-v { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; letter-spacing:-1px; }
+.stat-s { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* ── TABLE ── */
+.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:visible; }
+.tbl { width:100%; border-collapse:collapse; }
+.tbl th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--border); }
+.tbl td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tbody tr:hover td { background:var(--bg); cursor:pointer; }
+
+/* ── CHIPS ── */
+.chip { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; cursor:pointer; }
+.c-nuevo  { background:var(--blue-bg);   color:var(--blue); }
+.c-cont   { background:var(--green-bg);  color:var(--green); }
+.c-visita { background:var(--yellow-bg); color:var(--yellow); }
+.c-oferta { background:var(--purple-bg); color:var(--purple); }
+.c-frio   { background:var(--red-bg);    color:var(--red); }
+
+/* ── STATUS DROPDOWN ── */
+.status-sel { position:relative; display:inline-block; }
+.status-dd { display:none; position:absolute; top:calc(100% + 3px); left:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); box-shadow:0 8px 20px rgba(0,0,0,.1); z-index:200; min-width:130px; padding:3px; }
+.status-sel.open .status-dd { display:block; }
+.status-opt { padding:6px 9px; border-radius:6px; font-size:12.5px; cursor:pointer; }
+.status-opt:hover { background:var(--bg); }
+
+/* ── PIPELINE STAGES ── */
+.stages { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; margin-bottom:16px; }
+.stage { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:11px 13px; }
+.stage-l { font-size:10px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); font-weight:700; margin-bottom:3px; }
+.stage-n { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; }
+
+/* ── SEARCH ── */
+.srch { display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:6px 10px; }
+.srch input { background:none; border:none; outline:none; font-family:'DM Sans',sans-serif; font-size:13px; color:var(--text); width:140px; }
+.srch input::placeholder { color:var(--muted); }
+
+/* ── PANEL ── */
+.panel { display:none; position:fixed; right:0; top:0; bottom:0; width:340px; background:var(--surface); border-left:1px solid var(--border); z-index:300; overflow-y:auto; box-shadow:-4px 0 16px rgba(0,0,0,.08); }
+.panel.on { display:block; animation:sl .16s ease; }
+@keyframes sl { from{transform:translateX(16px);opacity:0} to{transform:translateX(0);opacity:1} }
+.panel-head { padding:18px 18px 14px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); }
+.panel-close { float:right; background:none; border:none; font-size:15px; cursor:pointer; color:var(--muted); }
+.panel-name { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; margin-bottom:2px; margin-top:4px; }
+.panel-sub { font-size:12px; color:var(--muted); margin-bottom:11px; }
+.panel-quick { display:flex; gap:6px; flex-wrap:wrap; }
+.panel-body { padding:16px 18px; }
+.p-section { margin-bottom:16px; }
+.p-label { font-size:10px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); font-weight:700; margin-bottom:7px; }
+.p-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.p-row:last-child { border-bottom:none; }
+.p-row span:first-child { color:var(--muted); }
+.tl-item { display:flex; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12.5px; }
+.tl-item:last-child { border-bottom:none; }
+.tl-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.tl-dot.r{background:var(--red);} .tl-dot.y{background:var(--yellow);} .tl-dot.g{background:var(--green);}
+.tl-body { flex:1; line-height:1.4; }
+.tl-body small { color:var(--muted); font-size:11px; }
+
+/* ── MODAL ── */
+.modal-ov { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:400; align-items:center; justify-content:center; }
+.modal-ov.on { display:flex; }
+.modal { background:var(--surface); border-radius:12px; padding:24px; width:420px; max-width:95vw; box-shadow:0 20px 50px rgba(0,0,0,.15); }
+.modal h2 { font-family:'Syne',sans-serif; font-size:17px; font-weight:800; margin-bottom:3px; }
+.modal-sub { font-size:12px; color:var(--muted); margin-bottom:16px; }
+.fl { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.mf { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+
+/* ── POSTPONE MODAL ── */
+.postpone-opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+.postpone-opt { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; cursor:pointer; font-size:13px; font-weight:500; transition:all .12s; }
+.postpone-opt:hover { border-color:var(--text); background:var(--surface); }
+.postpone-opt .opt-label { font-size:11px; color:var(--muted); display:block; margin-top:2px; }
+
+/* ── EMPTY STATE ── */
+.empty { text-align:center; padding:32px 20px; color:var(--muted); font-size:13px; }
+.empty .empty-icon { font-size:32px; margin-bottom:8px; }
+
+/* ── TOAST ── */
+.toast { position:fixed; bottom:20px; right:20px; background:var(--text); color:#fff; padding:9px 15px; border-radius:8px; font-size:13px; font-weight:600; z-index:9999; transform:translateY(50px); opacity:0; transition:all .22s; pointer-events:none; }
+.toast.on { transform:translateY(0); opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Pro<em>Pilot</em></div>
+    <div class="login-sub">CRM para brokers inmobiliarios</div>
+    <div id="login-error" style="display:none;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:7px;padding:8px 11px;font-size:12.5px;margin-bottom:12px"></div>
+    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
+    <div class="fr"><label>Contrasena</label><input type="password" id="login-password" placeholder="min. 6 caracteres"></div>
+    <button class="btn btn-dark" style="width:100%;margin-top:4px" onclick="doLogin()">Ingresar</button>
+    <div class="login-divider">no tenes cuenta?</div>
+    <button class="btn btn-ghost" style="width:100%" onclick="showRegister()">Crear cuenta nueva</button>
+    <div id="register-form" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      <div class="fr"><label>Tu nombre</label><input type="text" id="reg-name" placeholder="Ej: Mateo Garcia"></div>
+      <div class="fr"><label>Inmobiliaria</label><input type="text" id="reg-agency" placeholder="Ej: Garcia Propiedades"></div>
+      <button class="btn btn-dark" style="width:100%;margin-top:4px" onclick="doRegister()">Registrarme</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="app" id="appShell">
+  <aside class="sb">
+    <div class="sb-logo">Prop<em>Desk</em></div>
+    <div class="sb-item on" onclick="go('dash',this)"><span>◈</span> Dashboard</div>
+    <div class="sb-item"   onclick="go('leads',this)"><span>⚡</span> Leads <span class="sb-badge red">3</span></div>
+    <div class="sb-item"   onclick="go('recs',this)"><span>🔔</span> Recordatorios <span class="sb-badge red" id="sb-rec-count">5</span></div>
+    <div class="sb-foot">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="sb-av" id="sb-av">MG</div>
+        <div class="sb-name" id="sb-name">Mateo G.</div>
+      </div>
+      <button class="sb-logout" onclick="doLogout()">Salir</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ════════ DASHBOARD ════════ -->
+    <div class="view on" id="view-dash">
+      <div class="ph">
+        <div>
+          <h1 id="dash-greeting">Buenos días, Mateo 👋</h1>
+          <p>Miércoles 9 de marzo</p>
+        </div>
+        <button class="btn btn-dark btn-sm" onclick="openM('m-lead')">+ Nuevo lead</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-l">Leads activos</div><div class="stat-v">18</div><div class="stat-s">↑ 4 esta semana</div></div>
+        <div class="stat"><div class="stat-l">Recordatorios hoy</div><div class="stat-v" style="color:var(--red)">5</div><div class="stat-s">2 urgentes · 3 importantes</div></div>
+        <div class="stat"><div class="stat-l">Visitas esta semana</div><div class="stat-v" style="color:var(--green)">4</div><div class="stat-s">Sofía · Pablo · 2 más</div></div>
+      </div>
+
+      <!-- RECORDATORIOS en el dashboard — protagonistas -->
+      <div class="dash-grid">
+
+        <!-- COL IZQUIERDA: recordatorios -->
+        <div class="dash-col">
+          <div class="sec-head">
+            <span class="sec-title">🔔 Recordatorios de hoy</span>
+            <span class="sec-count red" id="dash-rec-count">5 pendientes</span>
+          </div>
+
+          <!-- urgentes -->
+          <div id="dash-recs-container">
+
+            <div class="rec-card urg" id="rc-romina">
+              <div class="rec-top">
+                <span class="rec-urgency urg">Urgente</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Romina Díaz</div>
+                  <div class="rec-why">Sin respuesta · 8 días</div>
+                </div>
+                <span class="rec-time">Hoy</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-romina')">✓ Resuelto</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPanel('romina')">Ver lead</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openStatusModal('romina')">Mover estado</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-romina')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card urg" id="rc-diego">
+              <div class="rec-top">
+                <span class="rec-urgency urg">Urgente</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Diego Sosa</div>
+                  <div class="rec-why">Nunca respondiste · 5 días</div>
+                </div>
+                <span class="rec-time">Hoy</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-diego')">✓ Resuelto</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPanel('diego')">Ver lead</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openStatusModal('diego')">Mover estado</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-diego')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card war" id="rc-menotti">
+              <div class="rec-top">
+                <span class="rec-urgency war">Importante</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Carlos Menotti</div>
+                  <div class="rec-why">Propietario · 32 días sin contacto · excl. vence en 18d</div>
+                </div>
+                <span class="rec-time">Esta semana</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-menotti')">✓ Resuelto</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-menotti')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card war" id="rc-pablo">
+              <div class="rec-top">
+                <span class="rec-urgency war">Importante</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">Pablo Herrera</div>
+                  <div class="rec-why">Visitó hace 4 días · sin seguimiento</div>
+                </div>
+                <span class="rec-time">Esta semana</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-pablo')">✓ Resuelto</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPanel('pablo')">Ver lead</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openStatusModal('pablo')">Mover estado</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-pablo')">Posponer</button>
+              </div>
+            </div>
+
+            <div class="rec-card war" id="rc-marta">
+              <div class="rec-top">
+                <span class="rec-urgency war">Importante</span>
+                <div class="rec-who-wrap">
+                  <div class="rec-who">🎂 Marta López</div>
+                  <div class="rec-why">Propietaria · cumple en 5 días</div>
+                </div>
+                <span class="rec-time">14/03</span>
+              </div>
+              <div class="rec-actions">
+                <button class="btn btn-xs btn-green" onclick="resolveRec('rc-marta')">✓ Resuelto</button>
+                <div class="divider"></div>
+                <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+                <button class="btn btn-xs btn-ghost" onclick="openPostpone('rc-marta')">Posponer</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div style="margin-top:10px">
+            <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="go('recs', document.querySelectorAll('.sb-item')[2])">Ver todos los recordatorios →</button>
+          </div>
+        </div>
+
+        <!-- COL DERECHA: leads -->
+        <div class="dash-col">
+          <div class="sec-head">
+            <span class="sec-title">⚡ Leads activos</span>
+            <button class="btn btn-xs btn-ghost" onclick="go('leads', document.querySelectorAll('.sb-item')[1])">Ver todos</button>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Lead</th><th>Estado</th><th>Acc.</th></tr></thead>
+              <tbody>
+                <tr onclick="openPanel('martin')">
+                  <td><strong>Martín R.</strong><br><span style="font-size:11px;color:var(--muted)">2 amb. Villa Urquiza</span></td>
+                  <td><span class="chip c-nuevo">Nuevo</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('romina')">
+                  <td><strong>Romina D.</strong><br><span style="font-size:11px;color:var(--red)">⚠ 8 días sin resp.</span></td>
+                  <td><span class="chip c-frio">Frío</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('sofia')">
+                  <td><strong>Sofía V.</strong><br><span style="font-size:11px;color:var(--muted)">Casa Flores</span></td>
+                  <td><span class="chip c-visita">Visita</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('pablo')">
+                  <td><strong>Pablo H.</strong><br><span style="font-size:11px;color:var(--yellow)">4 días sin seguim.</span></td>
+                  <td><span class="chip c-cont">Contactado</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('laura')">
+                  <td><strong>Laura M.</strong><br><span style="font-size:11px;color:var(--muted)">Alquiler Núñez</span></td>
+                  <td><span class="chip c-oferta">Oferta 🔥</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+                <tr onclick="openPanel('diego')">
+                  <td><strong>Diego S.</strong><br><span style="font-size:11px;color:var(--red)">⚠ 5 días sin resp.</span></td>
+                  <td><span class="chip c-nuevo">Nuevo</span></td>
+                  <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════ LEADS ════════ -->
+    <div class="view" id="view-leads">
+      <div class="ph">
+        <div><h1>Leads</h1><p>18 activos · cambiá el estado directo desde la tabla</p></div>
+        <div style="display:flex;gap:9px;align-items:center">
+          <div class="srch"><span style="color:var(--muted);font-size:13px">🔍</span><input placeholder="Buscar..."></div>
+          <button class="btn btn-dark btn-sm" onclick="openM('m-lead')">+ Nuevo lead</button>
+        </div>
+      </div>
+      <div class="stages">
+        <div class="stage"><div class="stage-l">Nuevo</div><div class="stage-n" style="color:var(--blue)">4</div></div>
+        <div class="stage"><div class="stage-l">Contactado</div><div class="stage-n" style="color:var(--green)">6</div></div>
+        <div class="stage"><div class="stage-l">Visita</div><div class="stage-n" style="color:var(--yellow)">3</div></div>
+        <div class="stage"><div class="stage-l">En oferta</div><div class="stage-n" style="color:var(--purple)">2</div></div>
+        <div class="stage"><div class="stage-l">Frío</div><div class="stage-n" style="color:var(--red)">3</div></div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="width:100%">
+          <thead><tr><th>Nombre</th><th>Busca</th><th>Fuente</th><th>Estado</th><th>Último contacto</th><th>Acciones</th></tr></thead>
+          <tbody>
+            <tr onclick="openPanel('martin')"><td><strong>Martín Rodríguez</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 2233-4455</span></td><td style="font-size:12px;color:var(--muted)">2 amb. Villa Urquiza</td><td style="font-size:12px;color:var(--muted)">ZonaProp</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-nuevo">Nuevo ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--muted)">Hace 2h</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('martin')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Llamada agendada ✅')">Llamar</button></div></td></tr>
+            <tr onclick="openPanel('romina')"><td><strong>Romina Díaz</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 5566-7788</span></td><td style="font-size:12px;color:var(--muted)">3 amb. Palermo</td><td style="font-size:12px;color:var(--muted)">Instagram</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-frio">Frío ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--red)">⚠ Hace 8 días</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('romina')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Llamada agendada ✅')">Llamar</button></div></td></tr>
+            <tr onclick="openPanel('sofia')"><td><strong>Sofía Varela</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 9900-1122</span></td><td style="font-size:12px;color:var(--muted)">Casa Flores</td><td style="font-size:12px;color:var(--muted)">Referido</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-visita">Visita ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--muted)">Ayer</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('sofia')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></div></td></tr>
+            <tr onclick="openPanel('pablo')"><td><strong>Pablo Herrera</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 3344-5566</span></td><td style="font-size:12px;color:var(--muted)">PH Caballito</td><td style="font-size:12px;color:var(--muted)">Argenprop</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-cont">Contactado ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--yellow)">4 días</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('pablo')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Seguimiento agendado ✅')">Agendar</button></div></td></tr>
+            <tr onclick="openPanel('laura')"><td><strong>Laura Méndez</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 7788-9900</span></td><td style="font-size:12px;color:var(--muted)">Alquiler Núñez</td><td style="font-size:12px;color:var(--muted)">WhatsApp</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-oferta">Oferta ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--muted)">Hoy</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('laura')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button></div></td></tr>
+            <tr onclick="openPanel('diego')"><td><strong>Diego Sosa</strong><br><span style="font-size:11px;color:var(--muted)">+54 9 11 1122-3344</span></td><td style="font-size:12px;color:var(--muted)">Monoamb. Almagro</td><td style="font-size:12px;color:var(--muted)">Mercado Libre</td><td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)"><span class="chip c-nuevo">Nuevo ▾</span><div class="status-dd"><div class="status-opt" onclick="setStatus(event,this,'Nuevo','c-nuevo')">Nuevo</div><div class="status-opt" onclick="setStatus(event,this,'Contactado','c-cont')">Contactado</div><div class="status-opt" onclick="setStatus(event,this,'Visita','c-visita')">Visita</div><div class="status-opt" onclick="setStatus(event,this,'Oferta','c-oferta')">En oferta</div><div class="status-opt" onclick="setStatus(event,this,'Frío','c-frio')">Frío</div></div></div></td><td style="font-size:12px;color:var(--red)">⚠ 5 días</td><td onclick="event.stopPropagation()"><div style="display:flex;gap:5px"><button class="btn btn-xs btn-dark" onclick="openPanel('diego')">Ver</button><button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button><button class="btn btn-xs btn-ghost" onclick="toast('Llamada agendada ✅')">Llamar</button></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ════════ RECORDATORIOS (vista propia) ════════ -->
+    <div class="view" id="view-recs">
+      <div class="ph">
+        <div>
+          <h1>Recordatorios</h1>
+          <p>Generados automáticamente según actividad · resolvé, escribí o posponé desde acá</p>
+        </div>
+        <span id="recs-summary" style="font-size:13px;color:var(--muted);align-self:center"></span>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div class="sec-head"><span class="sec-title">🔴 Urgente</span></div>
+
+        <div class="rec-card urg" id="rv-romina">
+          <div class="rec-top">
+            <span class="rec-urgency urg">Urgente</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Romina Díaz</div>
+              <div class="rec-why">Sin respuesta · 8 días · 2 mensajes enviados sin reply</div>
+            </div>
+            <span class="rec-time">Hoy</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-romina')">✓ Resuelto</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPanel('romina')">Ver lead</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openStatusModal('romina')">Mover estado</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-romina')">Posponer</button>
+          </div>
+        </div>
+
+        <div class="rec-card urg" id="rv-diego">
+          <div class="rec-top">
+            <span class="rec-urgency urg">Urgente</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Diego Sosa</div>
+              <div class="rec-why">Nunca respondiste · 5 días · Mercado Libre</div>
+            </div>
+            <span class="rec-time">Hoy</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-diego')">✓ Resuelto</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPanel('diego')">Ver lead</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openStatusModal('diego')">Mover estado</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-diego')">Posponer</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div class="sec-head"><span class="sec-title">🟡 Importante</span></div>
+
+        <div class="rec-card war" id="rv-menotti">
+          <div class="rec-top">
+            <span class="rec-urgency war">Importante</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Carlos Menotti — Propietario</div>
+              <div class="rec-why">32 días sin contacto · exclusividad vence el 27/03</div>
+            </div>
+            <span class="rec-time">Esta semana</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-menotti')">✓ Resuelto</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-menotti')">Posponer</button>
+          </div>
+        </div>
+
+        <div class="rec-card war" id="rv-pablo">
+          <div class="rec-top">
+            <span class="rec-urgency war">Importante</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Pablo Herrera</div>
+              <div class="rec-why">Visitó hace 4 días · sin seguimiento post-visita</div>
+            </div>
+            <span class="rec-time">Esta semana</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-pablo')">✓ Resuelto</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPanel('pablo')">Ver lead</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openStatusModal('pablo')">Mover estado</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-pablo')">Posponer</button>
+          </div>
+        </div>
+
+        <div class="rec-card war" id="rv-marta">
+          <div class="rec-top">
+            <span class="rec-urgency war">Importante</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">🎂 Marta López</div>
+              <div class="rec-why">Propietaria · cumple el 14/03 · oportunidad de contacto</div>
+            </div>
+            <span class="rec-time">14/03</span>
+          </div>
+          <div class="rec-actions">
+            <button class="btn btn-xs btn-green" onclick="resolveRec('rv-marta')">✓ Resuelto</button>
+            <div class="divider"></div>
+            <button class="btn btn-xs btn-ghost" onclick="toast('WhatsApp abierto 💬')">Escribir</button>
+            <button class="btn btn-xs btn-ghost" onclick="openPostpone('rv-marta')">Posponer</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-head"><span class="sec-title">🟢 Programados</span></div>
+        <div class="rec-card ok">
+          <div class="rec-top">
+            <span class="rec-urgency ok">Programado</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Martín Rodríguez</div>
+              <div class="rec-why">Seguimiento automático si no responde</div>
+            </div>
+            <span class="rec-time">12/03</span>
+          </div>
+        </div>
+        <div class="rec-card ok">
+          <div class="rec-top">
+            <span class="rec-urgency ok">Programado</span>
+            <div class="rec-who-wrap">
+              <div class="rec-who">Roberto Núñez — Propietario</div>
+              <div class="rec-why">Contacto mensual automático</div>
+            </div>
+            <span class="rec-time">25/03</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ════ PANEL LATERAL ════ -->
+<div class="panel" id="panel">
+  <div class="panel-head">
+    <button class="panel-close" onclick="closePanel()">✕</button>
+    <div id="p-chip"></div>
+    <div class="panel-name" id="p-name"></div>
+    <div class="panel-sub" id="p-sub"></div>
+    <div class="panel-quick" id="p-quick"></div>
+  </div>
+  <div class="panel-body" id="p-body"></div>
+</div>
+
+<!-- ════ MODAL NUEVO LEAD ════ -->
+<div class="modal-ov" id="m-lead">
+  <div class="modal">
+    <h2>Nuevo Lead</h2>
+    <div class="modal-sub">El seguimiento automatico se activa al guardar</div>
+    <div class="fr"><label>Nombre</label><input id="nl-nombre" placeholder="Juan Perez"></div>
+    <div class="fl">
+      <div class="fr"><label>Telefono</label><input id="nl-tel" placeholder="+54 9 11 ..."></div>
+      <div class="fr"><label>Fuente</label><select id="nl-fuente"><option>ZonaProp</option><option>Argenprop</option><option>Instagram</option><option>Mercado Libre</option><option>WhatsApp</option><option>Referido</option><option>Otro</option></select></div>
+    </div>
+    <div class="fr"><label>Que busca?</label><input id="nl-busca" placeholder="Ej: 3 amb. Palermo, hasta USD 140.000"></div>
+    <div style="background:#f5f9ff;border:1px solid #dbeafe;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12px;color:#1a5fb4;line-height:1.5">
+      Este es un negocio de relaciones. Conoce a tu cliente mas alla de la operacion y contactalo en fechas importantes para el.
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Fecha de cumpleanos</label><input type="date" id="nl-birthday"></div>
+      <div class="fr"><label>De que cuadro es?</label><input id="nl-club" placeholder="Ej: Boca, River..."></div>
+    </div>
+    <div class="fr"><label>Datos personales relevantes</label><input id="nl-notas" placeholder="Ej: tiene 2 hijos, le gusta el tennis..."></div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('m-lead')">Cancelar</button>
+      <button class="btn btn-dark" onclick="saveLead()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL MOVER ESTADO ════ -->
+<div class="modal-ov" id="m-status">
+  <div class="modal" style="max-width:320px">
+    <h2>Mover estado</h2>
+    <div class="modal-sub" id="m-status-who"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="closeM('m-status');toast('Estado → Contactado ✅')"><span class="chip c-cont" style="margin-right:8px">Contactado</span> Ya respondió</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="closeM('m-status');toast('Estado → Visita pautada ✅')"><span class="chip c-visita" style="margin-right:8px">Visita</span> Coordinó visita</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="closeM('m-status');toast('Estado → En oferta ✅')"><span class="chip c-oferta" style="margin-right:8px">En oferta</span> Hizo una oferta</button>
+      <button class="btn btn-ghost" style="justify-content:flex-start;color:var(--red)" onclick="closeM('m-status');toast('Estado → Frío ✅')"><span class="chip c-frio" style="margin-right:8px">Frío</span> No responde más</button>
+    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('m-status')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- ════ MODAL POSPONER ════ -->
+<div class="modal-ov" id="m-postpone">
+  <div class="modal" style="max-width:340px">
+    <h2>Posponer recordatorio</h2>
+    <div class="modal-sub">¿Cuándo querés que vuelva a aparecer?</div>
+    <div class="postpone-opts">
+      <div class="postpone-opt" onclick="doPostpone('Mañana')">Mañana<span class="opt-label">10/03</span></div>
+      <div class="postpone-opt" onclick="doPostpone('En 3 días')">En 3 días<span class="opt-label">12/03</span></div>
+      <div class="postpone-opt" onclick="doPostpone('La semana que viene')">La semana que viene<span class="opt-label">16/03</span></div>
+      <div class="postpone-opt" onclick="doPostpone('En 2 semanas')">En 2 semanas<span class="opt-label">23/03</span></div>
+    </div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('m-postpone')">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+// ── AUTH ──
+const users = {
+  mateo: { initials:'MG', name:'Mateo G.', greeting:'Buenos días, Mateo 👋' },
+  sofia: { initials:'SL', name:'Sofía L.', greeting:'Buenos días, Sofía 👋' }
+};
+function doLogin(key) {
+  const u = users[key];
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('on');
+  document.getElementById('sb-av').textContent = u.initials;
+  document.getElementById('sb-name').textContent = u.name;
+  document.getElementById('dash-greeting').textContent = u.greeting;
+  updateRecCount();
+}
+function doLogout() {
+  document.getElementById('appShell').classList.remove('on');
+  document.getElementById('loginScreen').style.display = 'flex';
+  closePanel();
+}
+
+// ── NAV ──
+function go(id, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('on'));
+  document.getElementById('view-' + id).classList.add('on');
+  if (el) el.classList.add('on');
+  closePanel();
+}
+
+// ── MODAL ──
+function openM(id) { document.getElementById(id).classList.add('on'); }
+function closeM(id) { document.getElementById(id).classList.remove('on'); }
+document.querySelectorAll('.modal-ov').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('on'); }));
+
+// ── TOAST ──
+function toast(msg) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg; el.classList.add('on');
+  setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+// ── STATUS DROPDOWN ──
+function toggleDD(el) { el.classList.toggle('open'); }
+function setStatus(e, opt, label, cls) {
+  e.stopPropagation();
+  const sel = opt.closest('.status-sel');
+  const chip = sel.querySelector('.chip');
+  chip.className = 'chip ' + cls;
+  chip.textContent = label + ' ▾';
+  sel.classList.remove('open');
+  toast('Estado → ' + label + ' ✅');
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.status-sel.open').forEach(s => s.classList.remove('open'));
+});
+
+// ── RECORDATORIOS ──
+let pendingCount = 5;
+
+function resolveRec(id) {
+  // resolve in both dash and recs view
+  const dashId = 'rc-' + id.split('-')[1];
+  const recId  = 'rv-' + id.split('-')[1];
+  [dashId, recId, id].forEach(rid => {
+    const el = document.getElementById(rid);
+    if (el) el.classList.add('done-card');
+  });
+  pendingCount = Math.max(0, pendingCount - 1);
+  updateRecCount();
+  toast('Recordatorio resuelto ✅');
+}
+
+function updateRecCount() {
+  const label = pendingCount > 0 ? pendingCount + ' pendientes' : '¡Todo al día! 🎉';
+  const countEl = document.getElementById('dash-rec-count');
+  if (countEl) { countEl.textContent = label; countEl.className = 'sec-count ' + (pendingCount > 0 ? 'red' : 'grn'); }
+  const badge = document.getElementById('sb-rec-count');
+  if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? '' : 'none'; }
+  const sumEl = document.getElementById('recs-summary');
+  if (sumEl) sumEl.textContent = pendingCount > 0 ? pendingCount + ' pendientes' : '¡Todo resuelto!';
+}
+
+let currentPostponeId = null;
+function openPostpone(id) { currentPostponeId = id; openM('m-postpone'); }
+function doPostpone(when) {
+  closeM('m-postpone');
+  if (currentPostponeId) {
+    const dashId = 'rc-' + currentPostponeId.split('-')[1];
+    const recId  = 'rv-' + currentPostponeId.split('-')[1];
+    [dashId, recId, currentPostponeId].forEach(rid => {
+      const el = document.getElementById(rid);
+      if (el) el.style.opacity = '.4';
+    });
+  }
+  toast('Pospuesto para ' + when + ' ⏰');
+}
+
+let currentStatusLead = null;
+function openStatusModal(leadKey) { currentStatusLead = leadKey; document.getElementById('m-status-who').textContent = leads[leadKey]?.name || ''; openM('m-status'); }
+
+// ── PANEL ──
+const leads = {
+  martin: {
+    name:'Martín Rodríguez', sub:'Comprador · ZonaProp · hace 2 horas',
+    chip:'<span class="chip c-nuevo">Nuevo</span>',
+    data:[['Teléfono','+54 9 11 2233-4455'],['Busca','2 amb. Villa Urquiza'],['Presupuesto','Hasta USD 95.000'],['Fuente','ZonaProp']],
+    tl:[{c:'g',t:'Hace 2h',d:'Consultó por 2 amb. en Villa Urquiza'},{c:'g',t:'Hace 2h',d:'Lead creado automáticamente'}]
+  },
+  romina: {
+    name:'Romina Díaz', sub:'Compradora · Instagram · hace 8 días',
+    chip:'<span class="chip c-frio">Frío</span>',
+    data:[['Teléfono','+54 9 11 5566-7788'],['Busca','3 amb. Palermo'],['Presupuesto','USD 120.000–140.000'],['Fuente','Instagram']],
+    tl:[{c:'g',t:'Hace 8 días',d:'Primer contacto'},{c:'g',t:'Hace 6 días',d:'Enviaste fotos del depto Thames 1800'},{c:'y',t:'Hace 4 días',d:'Sin respuesta — seguimiento enviado'},{c:'r',t:'Hoy',d:'⚠ 8 días sin respuesta. Alerta generada.'}]
+  },
+  sofia: {
+    name:'Sofía Varela', sub:'Compradora · Referida · ayer',
+    chip:'<span class="chip c-visita">Visita hoy 15:30 🔥</span>',
+    data:[['Teléfono','+54 9 11 9900-1122'],['Busca','Casa Flores / Caballito'],['Presupuesto','USD 180.000–210.000'],['Fuente','Referido']],
+    tl:[{c:'g',t:'Hace 5 días',d:'Primer contacto'},{c:'g',t:'Hace 2 días',d:'Coordinó visita hoy 15:30'},{c:'g',t:'Ayer',d:'Confirmó asistencia'}]
+  },
+  pablo: {
+    name:'Pablo Herrera', sub:'Comprador · Argenprop · hace 4 días',
+    chip:'<span class="chip c-cont">Contactado</span>',
+    data:[['Teléfono','+54 9 11 3344-5566'],['Busca','PH Caballito / Almagro'],['Presupuesto','USD 155.000–175.000'],['Fuente','Argenprop']],
+    tl:[{c:'g',t:'Hace 10 días',d:'Consultó por PH en Caballito'},{c:'g',t:'Hace 4 días',d:'Visitó el PH de Avellaneda 900'},{c:'r',t:'Hoy',d:'⚠ 4 días sin seguimiento post-visita'}]
+  },
+  laura: {
+    name:'Laura Méndez', sub:'Compradora · WhatsApp · hoy',
+    chip:'<span class="chip c-oferta">En oferta 🔥</span>',
+    data:[['Teléfono','+54 9 11 7788-9900'],['Busca','Alquiler Núñez'],['Presupuesto','ARS 250.000/mes'],['Fuente','WhatsApp']],
+    tl:[{c:'g',t:'Hace 12 días',d:'Primer contacto'},{c:'g',t:'Hace 7 días',d:'Visitó depto en Iberá 1400'},{c:'g',t:'Hoy',d:'Envió oferta formal. En cierre.'}]
+  },
+  diego: {
+    name:'Diego Sosa', sub:'Comprador · Mercado Libre · hace 5 días',
+    chip:'<span class="chip c-nuevo">Nuevo</span>',
+    data:[['Teléfono','+54 9 11 1122-3344'],['Busca','Monoamb. Almagro'],['Presupuesto','USD 55.000–65.000'],['Fuente','Mercado Libre']],
+    tl:[{c:'g',t:'Hace 5 días',d:'Consultó por monoamb. en Almagro'},{c:'r',t:'Hoy',d:'⚠ 5 días sin respuesta de tu parte'}]
+  }
+};
+
+function openPanel(key) {
+  const d = leads[key]; if (!d) return;
+  document.getElementById('p-chip').innerHTML = d.chip;
+  document.getElementById('p-name').textContent = d.name;
+  document.getElementById('p-sub').textContent = d.sub;
+  document.getElementById('p-quick').innerHTML = `
+    <button class="btn btn-dark btn-sm" onclick="toast('WhatsApp abierto 💬')">💬 Escribir</button>
+    <button class="btn btn-ghost btn-sm" onclick="toast('Llamada agendada ✅')">📞 Llamar</button>
+    <button class="btn btn-ghost btn-sm" onclick="openStatusModal('${key}')">Mover estado</button>
+  `;
+  const rows = d.data.map(r=>`<div class="p-row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  const tl = d.tl.map(t=>`<div class="tl-item"><div class="tl-dot ${t.c}"></div><div class="tl-body">${t.d}<br><small>${t.t}</small></div></div>`).join('');
+  document.getElementById('p-body').innerHTML = `
+    <div class="p-section"><div class="p-label">Datos</div>${rows}</div>
+    <div class="p-section"><div class="p-label">Historial</div>${tl}</div>
+  `;
+  document.getElementById('panel').classList.add('on');
+}
+function closePanel() { document.getElementById('panel').classList.remove('on'); }
+</script>
+</body>
+</html>
 
