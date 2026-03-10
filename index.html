@@ -34,7 +34,7 @@
 body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
 
 /* ── LOGIN ── */
-.login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); }
+.login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); position:fixed; inset:0; z-index:1000; }
 .login-box { background:var(--surface); border-radius:14px; padding:34px; width:370px; max-width:95vw; box-shadow:0 24px 60px rgba(0,0,0,.3); }
 .login-logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; margin-bottom:5px; }
 .login-logo em { color:#c8f55a; font-style:normal; background:var(--sidebar); padding:1px 6px; border-radius:5px; }
@@ -157,7 +157,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .stat-s { font-size:11px; color:var(--muted); margin-top:2px; }
 
 /* ── TABLE ── */
-.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:visible; }
 .tbl { width:100%; border-collapse:collapse; }
 .tbl th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--border); }
 .tbl td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
@@ -641,6 +641,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="fr"><label>Fuente</label><select id="nl-fuente"><option>ZonaProp</option><option>Argenprop</option><option>Instagram</option><option>Mercado Libre</option><option>WhatsApp</option><option>Referido</option><option>Otro</option></select></div>
     </div>
     <div class="fr"><label>Que busca?</label><input id="nl-busca" placeholder="Ej: 3 amb. Palermo, hasta USD 140.000"></div>
+    <div style="background:#f5f9ff;border:1px solid #dbeafe;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12px;color:#1a5fb4;line-height:1.5">
+      Este es un negocio de relaciones. Conoce a tu cliente mas alla de la operacion y contactalo en fechas importantes para el.
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Fecha de cumpleanos</label><input type="date" id="nl-birthday"></div>
+      <div class="fr"><label>De que cuadro es?</label><input id="nl-club" placeholder="Ej: Boca, River..."></div>
+    </div>
+    <div class="fr"><label>Datos personales relevantes</label><input id="nl-notas" placeholder="Ej: tiene 2 hijos, le gusta el tennis..."></div>
     <div class="mf">
       <button class="btn btn-ghost" onclick="closeM('m-lead')">Cancelar</button>
       <button class="btn btn-dark" onclick="saveLead()">Guardar</button>
@@ -826,10 +834,16 @@ async function saveLead() {
   const fuente  = document.getElementById('nl-fuente').value;
   const busca   = document.getElementById('nl-busca').value.trim();
   if (!nombre) return toast('El nombre es obligatorio');
+  const club    = document.getElementById('nl-club')?.value.trim() || '';
+  const bday    = document.getElementById('nl-birthday')?.value || null;
+  const notasp  = document.getElementById('nl-notas')?.value.trim() || '';
+  const notasFull = [club ? 'Cuadro: ' + club : '', notasp].filter(Boolean).join(' · ');
+
   const { data, error } = await sb.from('leads').insert([{
     nombre, telefono: tel, fuente, busca,
     estado: 'Nuevo',
     ultimo_contacto: new Date().toISOString(),
+    notas: notasFull || null,
     user_id: currentUser.id
   }]).select();
   if (error) { toast('Error al guardar'); console.error(error); return; }
@@ -1010,7 +1024,7 @@ init();
 body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
 
 /* ── LOGIN ── */
-.login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); }
+.login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--sidebar); position:fixed; inset:0; z-index:1000; }
 .login-box { background:var(--surface); border-radius:14px; padding:34px; width:370px; max-width:95vw; box-shadow:0 24px 60px rgba(0,0,0,.3); }
 .login-logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; margin-bottom:5px; }
 .login-logo em { color:#c8f55a; font-style:normal; background:var(--sidebar); padding:1px 6px; border-radius:5px; }
@@ -1133,7 +1147,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
 .stat-s { font-size:11px; color:var(--muted); margin-top:2px; }
 
 /* ── TABLE ── */
-.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+.tbl-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:visible; }
 .tbl { width:100%; border-collapse:collapse; }
 .tbl th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--border); }
 .tbl td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
@@ -1617,6 +1631,14 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
       <div class="fr"><label>Fuente</label><select id="nl-fuente"><option>ZonaProp</option><option>Argenprop</option><option>Instagram</option><option>Mercado Libre</option><option>WhatsApp</option><option>Referido</option><option>Otro</option></select></div>
     </div>
     <div class="fr"><label>Que busca?</label><input id="nl-busca" placeholder="Ej: 3 amb. Palermo, hasta USD 140.000"></div>
+    <div style="background:#f5f9ff;border:1px solid #dbeafe;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12px;color:#1a5fb4;line-height:1.5">
+      Este es un negocio de relaciones. Conoce a tu cliente mas alla de la operacion y contactalo en fechas importantes para el.
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Fecha de cumpleanos</label><input type="date" id="nl-birthday"></div>
+      <div class="fr"><label>De que cuadro es?</label><input id="nl-club" placeholder="Ej: Boca, River..."></div>
+    </div>
+    <div class="fr"><label>Datos personales relevantes</label><input id="nl-notas" placeholder="Ej: tiene 2 hijos, le gusta el tennis..."></div>
     <div class="mf">
       <button class="btn btn-ghost" onclick="closeM('m-lead')">Cancelar</button>
       <button class="btn btn-dark" onclick="saveLead()">Guardar</button>
