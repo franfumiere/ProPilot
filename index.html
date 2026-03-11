@@ -197,6 +197,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .tipo-opt:hover{border-color:var(--text);}
 .tipo-opt.selected{background:var(--text);color:#fff;border-color:var(--text);}
 .tl-type{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:1px 6px;border-radius:10px;background:var(--bg);color:var(--muted);margin-right:4px;}
+
+.rel-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px;}
+.rel-a{background:#f0faf4;color:#1e7e4a;border:1px solid #b2e4c8;}
+.rel-b{background:#fffbf0;color:#c47f00;border:1px solid #f5dfa0;}
+.rel-c{background:#f5f5f5;color:#888;border:1px solid #ddd;}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:9px 15px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;transform:translateY(50px);opacity:0;transition:all .22s;pointer-events:none;}
 .toast.on{transform:translateY(0);opacity:1;}
@@ -574,9 +579,12 @@ function enterApp() {
 
 // ── LEADS ──
 async function loadLeads() {
-  const { data, error } = await sb.from('leads').select('*').order('created_at', { ascending: false });
-  if (error) { console.error(error); return; }
-  leadsData = data || [];
+  const [leadsRes] = await Promise.all([
+    sb.from('leads').select('*').order('created_at', { ascending: false }),
+    loadContactosCounts()
+  ]);
+  if (leadsRes.error) { console.error(leadsRes.error); return; }
+  leadsData = leadsRes.data || [];
   computeReminders();
   renderAll();
 }
@@ -777,10 +785,11 @@ function renderDashLeads() {
     const dias = diasDesde(l.ultimo_contacto);
     const subColor = dias > 3 ? 'color:var(--red)' : 'color:var(--muted)';
     const subText = dias > 3 ? '⚠ ' + dias + ' dias sin contacto' : timeSince(l.ultimo_contacto);
+    const relBadge = relBadgeHTML(l.id);
     const tel = l.telefono ? l.telefono.replace(/\D/g,'') : '';
     const wa = tel ? 'https://wa.me/' + tel : '#';
     return `<tr onclick="openPanelLead('${l.id}')">
-      <td><strong>${l.nombre}</strong><br><span style="font-size:11px;${subColor}">${subText}</span></td>
+      <td><strong>${l.nombre}</strong><br><span style="font-size:11px;${subColor}">${subText}</span><br>${relBadge}</td>
       <td><span class="chip ${estadoClass(l.estado)}">${l.estado}</span></td>
       <td onclick="event.stopPropagation()"><a class="btn btn-xs btn-ghost" href="${wa}" target="_blank">Escribir</a></td>
     </tr>`;
@@ -807,7 +816,7 @@ function renderLeadsTable() {
     const wa = tel ? 'https://wa.me/' + tel : '#';
     const call = l.telefono ? 'tel:' + l.telefono : '#';
     return `<tr onclick="openPanelLead('${l.id}')">
-      <td><strong>${l.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">${l.telefono||''}</span></td>
+      <td><strong>${l.nombre}</strong><br><span style="font-size:11px;color:var(--muted)">${l.telefono||''}</span><br>${relBadgeHTML(l.id)}</td>
       <td style="font-size:12px;color:var(--muted)">${l.busca||''}</td>
       <td style="font-size:12px;color:var(--muted)">${l.fuente||''}</td>
       <td><div class="status-sel" onclick="event.stopPropagation();toggleDD(this)" data-lead-id="${l.id}">
@@ -884,7 +893,7 @@ function openPanelLead(id) {
   const tel = l.telefono ? l.telefono.replace(/\D/g,'') : '';
   const wa = tel ? 'https://wa.me/' + tel : '#';
   const call = l.telefono ? 'tel:' + l.telefono : '#';
-  document.getElementById('p-chip').innerHTML = `<span class="chip ${estadoClass(l.estado)}">${l.estado}</span>`;
+  document.getElementById('p-chip').innerHTML = `<span class="chip ${estadoClass(l.estado)}">${l.estado}</span> ${relBadgeHTML(l.id)}`;
   document.getElementById('p-name').textContent = l.nombre;
   document.getElementById('p-sub').textContent = (l.fuente||'') + ' · ' + timeSince(l.created_at);
   document.getElementById('p-quick').innerHTML = `
@@ -1079,6 +1088,60 @@ function toast(msg) {
   setTimeout(() => el.classList.remove('on'), 2600);
 }
 
+
+// ── RELACION SCORING ──
+let contactosCounts = {}; // leadId -> {total, tipos, lastDays}
+
+async function loadContactosCounts() {
+  const { data } = await sb.from('contactos')
+    .select('lead_id, tipo, created_at')
+    .eq('user_id', currentUser.id);
+  
+  contactosCounts = {};
+  if (!data) return;
+  data.forEach(c => {
+    if (!contactosCounts[c.lead_id]) contactosCounts[c.lead_id] = { total: 0, tipos: new Set(), lastDays: 999 };
+    const cc = contactosCounts[c.lead_id];
+    cc.total++;
+    cc.tipos.add(c.tipo);
+    const dias = diasDesde(c.created_at);
+    if (dias < cc.lastDays) cc.lastDays = dias;
+  });
+}
+
+function calcRelacion(leadId) {
+  const cc = contactosCounts[leadId];
+  if (!cc || cc.total === 0) return 'c';
+  
+  let score = 0;
+  // Cantidad de contactos
+  if (cc.total >= 8) score += 3;
+  else if (cc.total >= 3) score += 2;
+  else score += 1;
+  
+  // Variedad de tipos (llamada/visita/cafe valen mas)
+  const premium = ['llamada','visita','cafe'].filter(t => cc.tipos.has(t)).length;
+  score += premium * 2;
+  
+  // Recencia
+  if (cc.lastDays <= 14) score += 2;
+  else if (cc.lastDays <= 30) score += 1;
+  
+  if (score >= 7) return 'a';
+  if (score >= 3) return 'b';
+  return 'c';
+}
+
+function relBadgeHTML(leadId) {
+  const r = calcRelacion(leadId);
+  const map = {
+    a: ['rel-a', '🟢 Afianzado'],
+    b: ['rel-b', '🟡 Fidelizando'],
+    c: ['rel-c', '⚪ Por conocer']
+  };
+  const [cls, label] = map[r];
+  return `<span class="rel-badge ${cls}">${label}</span>`;
+}
 // ── START ──
 init();
 </script>
