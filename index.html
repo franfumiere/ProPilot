@@ -244,8 +244,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <div class="login-logo">Pro<em>Pilot</em></div>
     <div class="login-sub">CRM para brokers inmobiliarios</div>
     <div id="login-error" style="display:none;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:7px;padding:8px 11px;font-size:12.5px;margin-bottom:12px"></div>
-    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
-    <div class="fr"><label>Contrasena</label><input type="password" id="login-password" placeholder="min. 6 caracteres"></div>
+    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com" oninput="window._lemail=this.value" onchange="window._lemail=this.value"></div>
+    <div class="fr"><label>Contrasena</label><input type="password" id="login-password" placeholder="min. 6 caracteres" oninput="window._lpass=this.value" onchange="window._lpass=this.value"></div>
     <button class="btn btn-dark" style="width:100%;margin-top:4px" onclick="doLogin()">Ingresar</button>
     <div class="login-divider">no tenes cuenta?</div>
     <button class="btn btn-ghost" style="width:100%" onclick="showRegister()">Crear cuenta nueva</button>
@@ -714,11 +714,14 @@ async function init() {
 
 // ── AUTH ──
 async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  if (!email || !pass) return showError('Completa email y contrasena');
+  const emailEl = document.getElementById('login-email');
+  const passEl  = document.getElementById('login-password');
+  const email   = emailEl.value || window._lemail || '';
+  const pass    = passEl.value || window._lpass || '';
+  const emailTrimmed = email.trim();
+  if (!emailTrimmed || !pass) return showError('Completa email y contrasena');
   setLoginLoading(true);
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  const { error } = await sb.auth.signInWithPassword({ email: emailTrimmed, password: pass });
   setLoginLoading(false);
   if (error) showError('Email o contrasena incorrectos');
 }
@@ -1234,8 +1237,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--t
     <div class="login-logo">Pro<em>Pilot</em></div>
     <div class="login-sub">CRM para brokers inmobiliarios</div>
     <div id="login-error" style="display:none;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:7px;padding:8px 11px;font-size:12.5px;margin-bottom:12px"></div>
-    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
-    <div class="fr"><label>Contrasena</label><input type="password" id="login-password" placeholder="min. 6 caracteres"></div>
+    <div class="fr"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com" oninput="window._lemail=this.value" onchange="window._lemail=this.value"></div>
+    <div class="fr"><label>Contrasena</label><input type="password" id="login-password" placeholder="min. 6 caracteres" oninput="window._lpass=this.value" onchange="window._lpass=this.value"></div>
     <button class="btn btn-dark" style="width:100%;margin-top:4px" onclick="doLogin()">Ingresar</button>
     <div class="login-divider">no tenes cuenta?</div>
     <button class="btn btn-ghost" style="width:100%" onclick="showRegister()">Crear cuenta nueva</button>
