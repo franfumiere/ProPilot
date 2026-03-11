@@ -192,6 +192,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .postpone-opt:hover{border-color:var(--text);background:var(--surface);}
 .postpone-opt .opt-label{font-size:11px;color:var(--muted);display:block;margin-top:2px;}
 
+
+.tipo-opt{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer;font-size:12px;font-weight:500;transition:all .12s;}
+.tipo-opt:hover{border-color:var(--text);}
+.tipo-opt.selected{background:var(--text);color:#fff;border-color:var(--text);}
+.tl-type{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:1px 6px;border-radius:10px;background:var(--bg);color:var(--muted);margin-right:4px;}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:9px 15px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;transform:translateY(50px);opacity:0;transition:all .22s;pointer-events:none;}
 .toast.on{transform:translateY(0);opacity:1;}
@@ -435,6 +440,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
+
+<!-- MODAL REGISTRAR CONTACTO -->
+<div class="modal-ov" id="m-contacto">
+  <div class="modal" style="max-width:360px">
+    <h2>Registrar contacto</h2>
+    <div class="modal-sub" id="m-contacto-who"></div>
+    <div class="fr">
+      <label>Tipo de contacto</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px">
+        <div class="tipo-opt selected" onclick="selectTipo(this,'llamada')">📞 Llamada</div>
+        <div class="tipo-opt" onclick="selectTipo(this,'whatsapp')">💬 WhatsApp</div>
+        <div class="tipo-opt" onclick="selectTipo(this,'visita')">🏠 Visita</div>
+        <div class="tipo-opt" onclick="selectTipo(this,'cafe')">☕ Cafe</div>
+        <div class="tipo-opt" onclick="selectTipo(this,'email')">✉️ Email</div>
+        <div class="tipo-opt" onclick="selectTipo(this,'otro')">📝 Otro</div>
+      </div>
+    </div>
+    <div class="fr" style="margin-top:12px">
+      <label>Notas (opcional)</label>
+      <textarea id="contacto-notas" placeholder="Ej: Le mande fotos del depto en Palermo, quiere visitar la semana que viene..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px"></textarea>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('m-contacto')">Cancelar</button>
+      <button class="btn btn-dark" onclick="saveContacto()">Guardar</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toastEl"></div>
 
 <script>
@@ -843,7 +875,10 @@ async function updateEstado(e, leadId, nuevoEstado) {
 }
 
 // ── PANEL ──
+let currentPanelLeadId = null;
+
 function openPanelLead(id) {
+  currentPanelLeadId = id;
   const l = leadsData.find(x => x.id === id);
   if (!l) return;
   const tel = l.telefono ? l.telefono.replace(/\D/g,'') : '';
@@ -853,9 +888,10 @@ function openPanelLead(id) {
   document.getElementById('p-name').textContent = l.nombre;
   document.getElementById('p-sub').textContent = (l.fuente||'') + ' · ' + timeSince(l.created_at);
   document.getElementById('p-quick').innerHTML = `
-    <a class="btn btn-dark btn-sm" href="${wa}" target="_blank">💬 Escribir</a>
-    <a class="btn btn-ghost btn-sm" href="${call}">📞 Llamar</a>
+    <a class="btn btn-dark btn-sm" href="${wa}" target="_blank" onclick="registrarContactoRapido('${l.id}','whatsapp')">💬 Escribir</a>
+    <a class="btn btn-ghost btn-sm" href="${call}" onclick="registrarContactoRapido('${l.id}','llamada')">📞 Llamar</a>
     <button class="btn btn-ghost btn-sm" onclick="openStatusRec('${l.id}','${l.nombre}')">Mover estado</button>
+    <button class="btn btn-ghost btn-sm" onclick="openContactoModal('${l.id}','${l.nombre}')">+ Registrar</button>
   `;
   const rows = [
     ['Telefono', l.telefono ? `<a href="tel:${l.telefono}">${l.telefono}</a>` : 'No cargado'],
@@ -864,16 +900,91 @@ function openPanelLead(id) {
     ['Estado', l.estado],
     ['Ultimo contacto', timeSince(l.ultimo_contacto)],
     l.birthday ? ['Cumpleanos', formatBday(l.birthday)] : null,
-    l.notas ? ['Notas', l.notas] : null,
+    l.notas ? ['Datos personales', l.notas] : null,
   ].filter(Boolean);
   document.getElementById('p-body').innerHTML = `
     <div class="p-section">
       <div class="p-label">Datos</div>
       ${rows.map(r => `<div class="p-row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('')}
     </div>
+    <div class="p-section">
+      <div class="p-label" style="display:flex;align-items:center;justify-content:space-between">
+        Historial
+        <button class="btn btn-xs btn-ghost" onclick="openContactoModal('${l.id}','${l.nombre}')">+ Agregar</button>
+      </div>
+      <div id="historial-container"><div style="font-size:13px;color:var(--muted);padding:8px 0">Cargando...</div></div>
+    </div>
   `;
   document.getElementById('panel').classList.add('on');
   closeSidebar();
+  loadHistorial(id);
+}
+
+async function loadHistorial(leadId) {
+  const { data, error } = await sb.from('contactos')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: false });
+  
+  const container = document.getElementById('historial-container');
+  if (!container) return;
+  if (error || !data || data.length === 0) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Sin historial aun. Registra el primer contacto.</div>';
+    return;
+  }
+  const tipoIcon = { llamada:'📞', whatsapp:'💬', visita:'🏠', cafe:'☕', email:'✉️', otro:'📝' };
+  container.innerHTML = data.map(c => `
+    <div class="tl-item">
+      <div class="tl-dot g"></div>
+      <div class="tl-body">
+        <span class="tl-type">${tipoIcon[c.tipo]||'📝'} ${c.tipo}</span>
+        ${c.notas ? `<span style="font-size:12.5px">${c.notas}</span>` : ''}
+        <br><small>${timeSince(c.created_at)}</small>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── CONTACTO MODAL ──
+let currentContactoLeadId = null;
+let currentTipo = 'llamada';
+
+function openContactoModal(leadId, name) {
+  currentContactoLeadId = leadId;
+  currentTipo = 'llamada';
+  document.getElementById('m-contacto-who').textContent = name;
+  document.getElementById('contacto-notas').value = '';
+  document.querySelectorAll('.tipo-opt').forEach((o,i) => o.classList.toggle('selected', i===0));
+  openM('m-contacto');
+}
+
+function selectTipo(el, tipo) {
+  currentTipo = tipo;
+  document.querySelectorAll('.tipo-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function registrarContactoRapido(leadId, tipo) {
+  if (!currentUser) return;
+  await sb.from('contactos').insert([{ lead_id: leadId, user_id: currentUser.id, tipo, notas: null }]);
+  await sb.from('leads').update({ ultimo_contacto: new Date().toISOString() }).eq('id', leadId);
+  loadLeads();
+}
+
+async function saveContacto() {
+  if (!currentContactoLeadId || !currentUser) return;
+  const notas = document.getElementById('contacto-notas').value.trim() || null;
+  await sb.from('contactos').insert([{
+    lead_id: currentContactoLeadId,
+    user_id: currentUser.id,
+    tipo: currentTipo,
+    notas
+  }]);
+  await sb.from('leads').update({ ultimo_contacto: new Date().toISOString() }).eq('id', currentContactoLeadId);
+  closeM('m-contacto');
+  toast('Contacto registrado!');
+  loadLeads();
+  if (currentPanelLeadId === currentContactoLeadId) loadHistorial(currentContactoLeadId);
 }
 
 function closePanel() { document.getElementById('panel').classList.remove('on'); }
