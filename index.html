@@ -632,10 +632,6 @@ const SUPA_KEY = 'sb_publishable_gNNUvK6kQQqisFAwYpFEHA_DfKVvB1e';
 const { createClient } = supabase;
 const sb = createClient(SUPA_URL, SUPA_KEY);
 
-// ── APIFY ──
-const APIFY_TOKEN = 'apify_api_WpejPszhZRHFi111fZS5P6UrqJJxJF3F6t72';
-const ARGENPROP_ACTOR = 'fBSvbyQ5dHGq5efbX';
-
 // ── STATE ──
 let currentUser = null;
 let leadsData = [];
@@ -1373,40 +1369,14 @@ async function scrapeArgenprop(url) {
   toast('Conectando con Argenprop...');
   
   try {
-    // Start Apify run
-    const startRes = await fetch(`https://api.apify.com/v2/acts/${ARGENPROP_ACTOR}/runs?token=${APIFY_TOKEN}`, {
+    const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ startUrls: [{ url }], maxItems: 1 })
+      body: JSON.stringify({ url })
     });
-    const startData = await startRes.json();
-    const runId = startData.data?.id;
-    if (!runId) throw new Error('No se pudo iniciar el scraping');
-    
-    toast('Extrayendo datos de Argenprop...');
-    
-    // Poll for completion
-    let attempts = 0;
-    let result = null;
-    while (attempts < 20) {
-      await new Promise(r => setTimeout(r, 3000));
-      const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
-      const statusData = await statusRes.json();
-      const status = statusData.data?.status;
-      if (status === 'SUCCEEDED') {
-        // Get results
-        const datasetId = statusData.data?.defaultDatasetId;
-        const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}`);
-        const items = await itemsRes.json();
-        result = items[0];
-        break;
-      } else if (status === 'FAILED' || status === 'ABORTED') {
-        throw new Error('Scraping fallido');
-      }
-      attempts++;
-    }
-    
-    if (!result) throw new Error('Timeout');
+    if (!res.ok) throw new Error('Error del servidor');
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
     
     // Fill form with scraped data
     const title = result.title || '';
