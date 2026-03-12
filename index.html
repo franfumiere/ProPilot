@@ -1369,14 +1369,35 @@ async function scrapeArgenprop(url) {
   toast('Conectando con Argenprop...');
   
   try {
+    // Step 1: Start run via our API (returns immediately)
     const res = await fetch('/api/scrape', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
     });
     if (!res.ok) throw new Error('Error del servidor');
-    const result = await res.json();
-    if (result.error) throw new Error(result.error);
+    const { runId, datasetId, token, error } = await res.json();
+    if (error) throw new Error(error);
+    
+    toast('Extrayendo datos de Argenprop...');
+    
+    // Step 2: Poll Apify directly from browser
+    let result = null;
+    for (let i = 0; i < 25; i++) {
+      await new Promise(r => setTimeout(r, 4000));
+      const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${token}`);
+      const statusData = await statusRes.json();
+      const status = statusData.data?.status;
+      if (status === 'SUCCEEDED') {
+        const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${token}`);
+        const items = await itemsRes.json();
+        result = items[0];
+        break;
+      } else if (status === 'FAILED' || status === 'ABORTED') {
+        throw new Error('Scraping fallido');
+      }
+    }
+    if (!result) throw new Error('Timeout');
     
     // Fill form with scraped data
     const title = result.title || '';
