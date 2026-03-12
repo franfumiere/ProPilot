@@ -1476,8 +1476,7 @@ async function enviarFicha(leadId, propId) {
     prop.url ? ('\n' + prop.url) : ''
   ].filter(l => l !== null && l !== undefined);
   
-  const mensaje = lineas.join('
-');
+  const mensaje = lineas.join('\n');
   const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
   window.open(waUrl, '_blank');
   registrarContactoRapido(leadId, 'whatsapp');
