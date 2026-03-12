@@ -1367,11 +1367,18 @@ function parsePropUrl() {
   const ambMatch = slug.match(/(\d+)-ambientes?/i) || slug.match(/(\d+)-amb/i);
   const amb = ambMatch ? ambMatch[1] : '';
   
-  // Detect barrio - last meaningful words before the ID number
+  // Detect barrio - look for "-en-" pattern in slug
   const idMatch = slug.match(/-(\d{6,})$/);
   const slugClean = idMatch ? slug.replace(idMatch[0],'') : slug;
-  const words = slugClean.split('-').filter(w => w.length > 3 && isNaN(w) && !['ambientes','cochera','pileta','metros','cuadrados','venta','alquiler','casas','departamentos'].includes(w.toLowerCase()));
-  const barrio = words.slice(-2).map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  const enMatch = slugClean.match(/-en-(.+)$/i);
+  let barrio = '';
+  if (enMatch) {
+    barrio = enMatch[1].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  } else {
+    const noise = ['ambientes','cochera','pileta','metros','venta','alquiler','casas','departamentos','amenities','clasificado','con','sin','del'];
+    const words = slugClean.split('-').filter(w => w.length > 3 && isNaN(w) && !noise.includes(w.toLowerCase()));
+    barrio = words.slice(-2).map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  }
   
   document.getElementById('prop-tipo').value = tipo;
   document.getElementById('prop-amb').value = amb;
