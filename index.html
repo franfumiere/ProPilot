@@ -585,9 +585,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <h2>Nueva propiedad</h2>
     <div class="modal-sub">Pega la URL de ZonaProp y completamos los datos</div>
     <div class="fr">
-      <label>URL de ZonaProp *</label>
+      <label>URL de la propiedad <span style="font-size:11px;color:var(--muted)">(Argenprop recomendado)</span></label>
       <div style="display:flex;gap:6px">
-        <input id="prop-url" placeholder="https://www.zonaprop.com.ar/..." style="flex:1">
+        <input id="prop-url" placeholder="https://www.argenprop.com/..." style="flex:1">
         <button class="btn btn-ghost btn-sm" onclick="parsePropUrl()">Importar</button>
       </div>
     </div>
@@ -1142,7 +1142,13 @@ function selectTipo(el, tipo) {
 async function registrarContactoRapido(leadId, tipo) {
   if (!currentUser) return;
   await sb.from('contactos').insert([{ lead_id: leadId, user_id: currentUser.id, tipo, notas: null }]);
-  await sb.from('leads').update({ ultimo_contacto: new Date().toISOString() }).eq('id', leadId);
+  const lead = leadsData.find(l => l.id === leadId);
+  const updates = { ultimo_contacto: new Date().toISOString() };
+  if (lead && lead.estado === 'Nuevo') {
+    updates.estado = 'Contactado';
+    lead.estado = 'Contactado';
+  }
+  await sb.from('leads').update(updates).eq('id', leadId);
   loadLeads();
 }
 
@@ -1341,6 +1347,7 @@ function renderProps() {
       <td>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           ${p.url ? `<a class="btn btn-xs btn-dark" href="${p.url}" target="_blank">Ver</a>` : ''}
+          <button class="btn btn-xs btn-ghost" onclick="openVincularDesdePropiedad('${p.id}','${(p.tipo||'')+' '+(p.ambientes||'')+' amb. '+( p.barrio||'')}')">Vincular lead</button>
           <button class="btn btn-xs btn-ghost" onclick="deleteProp('${p.id}')">Eliminar</button>
         </div>
       </td>
@@ -1561,6 +1568,47 @@ async function enviarFicha(leadId, propId) {
   window.open(waUrl, '_blank');
   registrarContactoRapido(leadId, 'whatsapp');
   closeM('m-vincular');
+}
+
+
+async function openVincularDesdePropiedad(propId, propName) {
+  const { data: linked } = await sb.from('lead_propiedades').select('lead_id').eq('propiedad_id', propId);
+  const linkedIds = (linked||[]).map(x => x.lead_id);
+  
+  document.getElementById('m-vincular-who').textContent = propName;
+  const list = document.getElementById('vincular-list');
+  
+  if (!leadsData.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--muted)">No hay leads cargados.</p>';
+  } else {
+    list.innerHTML = leadsData.map(l => {
+      const isLinked = linkedIds.includes(l.id);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <strong style="font-size:13px">${l.nombre}</strong>
+          <div style="font-size:12px;color:var(--muted)">${l.busca||''}</div>
+        </div>
+        ${isLinked
+          ? `<button class="btn btn-xs btn-ghost" style="color:var(--red)" onclick="desvincularDesdeProp('${propId}','${l.id}',this)">Quitar</button>`
+          : `<button class="btn btn-xs btn-dark" onclick="vincularDesdeProp('${propId}','${l.id}',this)">Vincular</button>`
+        }
+      </div>`;
+    }).join('');
+  }
+  currentVincularLeadId = null;
+  openM('m-vincular');
+}
+
+async function vincularDesdeProp(propId, leadId, btn) {
+  await sb.from('lead_propiedades').insert([{ lead_id: leadId, propiedad_id: propId, user_id: currentUser.id }]);
+  btn.textContent = 'Vinculado ✓'; btn.disabled = true;
+  toast('Lead vinculado!');
+}
+
+async function desvincularDesdeProp(propId, leadId, btn) {
+  await sb.from('lead_propiedades').delete().eq('lead_id', leadId).eq('propiedad_id', propId);
+  btn.textContent = 'Quitado'; btn.disabled = true;
+  toast('Vínculo eliminado');
 }
 
 async function loadPropiedadesLead(leadId) {
