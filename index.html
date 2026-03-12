@@ -374,7 +374,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
           <h1 id="dash-greeting">Hola!</h1>
           <p id="dash-date"></p>
         </div>
-        <button class="btn btn-dark btn-sm" onclick="openM('m-lead')">+ Nuevo lead</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="openM('m-rec')">+ Recordatorio</button>
+          <button class="btn btn-ghost btn-sm" onclick="openM('m-prop')">+ Propiedad</button>
+          <button class="btn btn-dark btn-sm" onclick="openM('m-lead')">+ Nuevo lead</button>
+        </div>
       </div>
 
       <!-- Suggestions -->
