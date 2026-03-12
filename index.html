@@ -1473,8 +1473,7 @@ async function enviarFicha(leadId, propId) {
     `🏠 ${prop.tipo||'Propiedad'} ${prop.ambientes ? prop.ambientes+' ambientes' : ''} | ${prop.barrio||''}`,
     prop.precio ? `💰 ${prop.precio}` : '',
     prop.descripcion ? `📝 ${prop.descripcion}` : '',
-    prop.url ? `
-${prop.url}` : ''
+    prop.url ? ('\n' + prop.url) : ''
   ].filter(l => l !== null && l !== undefined);
   
   const mensaje = lineas.join('
