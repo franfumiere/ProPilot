@@ -19,27 +19,10 @@ module.exports = async function handler(req, res) {
     });
     const startData = await startRes.json();
     const runId = startData.data?.id;
+    const datasetId = startData.data?.defaultDatasetId;
     if (!runId) return res.status(500).json({ error: 'No se pudo iniciar el scraping' });
 
-    let result = null;
-    for (let i = 0; i < 20; i++) {
-      await new Promise(r => setTimeout(r, 3000));
-      const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
-      const statusData = await statusRes.json();
-      const status = statusData.data?.status;
-      if (status === 'SUCCEEDED') {
-        const datasetId = statusData.data?.defaultDatasetId;
-        const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}`);
-        const items = await itemsRes.json();
-        result = items[0];
-        break;
-      } else if (status === 'FAILED' || status === 'ABORTED') {
-        return res.status(500).json({ error: 'Scraping fallido' });
-      }
-    }
-
-    if (!result) return res.status(504).json({ error: 'Timeout' });
-    return res.status(200).json(result);
+    return res.status(200).json({ runId, datasetId, token: APIFY_TOKEN });
 
   } catch (e) {
     console.error(e);
