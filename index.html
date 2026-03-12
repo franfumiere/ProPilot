@@ -354,6 +354,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <div class="sb-item on" onclick="go('dash',this)"><span>◈</span> Dashboard</div>
     <div class="sb-item" onclick="go('leads',this)"><span>⚡</span> Leads <span class="sb-badge red" id="sb-leads-count">0</span></div>
     <div class="sb-item" onclick="go('recs',this)"><span>🔔</span> Recordatorios <span class="sb-badge red" id="sb-rec-count">0</span></div>
+    <div class="sb-item" onclick="go('props',this)"><span>🏠</span> Propiedades</div>
     <div class="sb-foot">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="sb-av" id="sb-av">?</div>
@@ -447,6 +448,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
       </div>
     </div>
 
+
+    <!-- PROPIEDADES -->
+    <div class="view" id="view-props">
+      <div class="ph">
+        <div><h1>Propiedades</h1><p>Carga propiedades y asocialas a tus leads</p></div>
+        <button class="btn btn-dark btn-sm" onclick="openM('m-prop')">+ Nueva propiedad</button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl" style="width:100%">
+          <thead><tr><th>Propiedad</th><th>Barrio</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="props-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -556,10 +571,58 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <span>🔔</span><span>Recordatorios</span>
     <span class="mobile-nav-badge" id="mn-rec-count" style="display:none">0</span>
   </div>
+  <div class="mobile-nav-item" onclick="goMobile('props', this)">
+    <span>🏠</span><span>Propiedades</span>
+  </div>
   <div class="mobile-nav-item" onclick="openM('m-lead')">
     <span>＋</span><span>Nuevo</span>
   </div>
 </nav>
+
+<!-- MODAL NUEVA PROPIEDAD -->
+<div class="modal-ov" id="m-prop">
+  <div class="modal" style="max-width:440px">
+    <h2>Nueva propiedad</h2>
+    <div class="modal-sub">Pega la URL de ZonaProp y completamos los datos</div>
+    <div class="fr">
+      <label>URL de ZonaProp *</label>
+      <div style="display:flex;gap:6px">
+        <input id="prop-url" placeholder="https://www.zonaprop.com.ar/..." style="flex:1">
+        <button class="btn btn-ghost btn-sm" onclick="parsePropUrl()">Importar</button>
+      </div>
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Tipo</label>
+        <select id="prop-tipo">
+          <option>Casa</option><option>Departamento</option><option>PH</option>
+          <option>Local</option><option>Oficina</option><option>Terreno</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="fr"><label>Ambientes</label><input id="prop-amb" placeholder="Ej: 3"></div>
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Barrio / Zona</label><input id="prop-barrio" placeholder="Ej: Palermo"></div>
+      <div class="fr"><label>Precio</label><input id="prop-precio" placeholder="Ej: USD 150.000"></div>
+    </div>
+    <div class="fr"><label>Descripcion breve</label>
+      <textarea id="prop-desc" placeholder="Ej: Casa con pileta, cochera, a 2 cuadras del tren..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:60px"></textarea>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('m-prop')">Cancelar</button>
+      <button class="btn btn-dark" onclick="saveProp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VINCULAR PROPIEDAD A LEAD -->
+<div class="modal-ov" id="m-vincular">
+  <div class="modal" style="max-width:400px">
+    <h2>Vincular propiedad</h2>
+    <div class="modal-sub" id="m-vincular-who"></div>
+    <div id="vincular-list" style="max-height:300px;overflow-y:auto;margin-top:8px"></div>
+    <div class="mf"><button class="btn btn-ghost" onclick="closeM('m-vincular')">Cerrar</button></div>
+  </div>
+</div>
 <div class="toast" id="toastEl"></div>
 
 <script>
@@ -663,6 +726,7 @@ function enterApp() {
   const greeting = hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
   document.getElementById('dash-greeting').textContent = greeting + ', ' + name.split(' ')[0] + '!';
   loadLeads();
+  loadProps();
 }
 
 // ── LEADS ──
@@ -1012,6 +1076,13 @@ function openPanelLead(id) {
     </div>
     <div class="p-section">
       <div class="p-label" style="display:flex;align-items:center;justify-content:space-between">
+        Propiedades de interes
+        <button class="btn btn-xs btn-ghost" onclick="openVincular('${l.id}','${l.nombre}')">+ Vincular</button>
+      </div>
+      <div id="p-props-container"><div style="font-size:13px;color:var(--muted);padding:8px 0">Cargando...</div></div>
+    </div>
+    <div class="p-section">
+      <div class="p-label" style="display:flex;align-items:center;justify-content:space-between">
         Historial
         <button class="btn btn-xs btn-ghost" onclick="openContactoModal('${l.id}','${l.nombre}')">+ Agregar</button>
       </div>
@@ -1021,6 +1092,7 @@ function openPanelLead(id) {
   document.getElementById('panel').classList.add('on');
   closeSidebar();
   loadHistorial(id);
+  loadPropiedadesLead(id);
 }
 
 async function loadHistorial(leadId) {
@@ -1242,6 +1314,201 @@ function goMobile(id, el) {
   go(id, document.querySelectorAll('.sb-item')[['dash','leads','recs'].indexOf(id)]);
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('on'));
   if (el) el.classList.add('on');
+}
+
+// ── PROPIEDADES ──
+let propsData = [];
+let currentVincularLeadId = null;
+
+async function loadProps() {
+  const { data } = await sb.from('propiedades').select('*').order('created_at', { ascending: false });
+  propsData = data || [];
+  renderProps();
+}
+
+function renderProps() {
+  const tbody = document.getElementById('props-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = propsData.map(p => `
+    <tr>
+      <td>
+        <strong>${p.tipo||''} ${p.ambientes ? p.ambientes+' amb.' : ''}</strong>
+        ${p.descripcion ? `<br><span style="font-size:11px;color:var(--muted)">${p.descripcion.slice(0,60)}${p.descripcion.length>60?'...':''}</span>` : ''}
+      </td>
+      <td style="font-size:13px">${p.barrio||''}</td>
+      <td style="font-size:13px;font-weight:600">${p.precio||''}</td>
+      <td><span class="chip ${p.estado==='Activa'?'c-cont':'c-frio'}">${p.estado||'Activa'}</span></td>
+      <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${p.url ? `<a class="btn btn-xs btn-dark" href="${p.url}" target="_blank">Ver</a>` : ''}
+          <button class="btn btn-xs btn-ghost" onclick="deleteProp('${p.id}')">Eliminar</button>
+        </div>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No hay propiedades cargadas aun</td></tr>';
+}
+
+function parsePropUrl() {
+  const url = document.getElementById('prop-url').value.trim();
+  if (!url) return;
+  
+  // Extract info from URL slug
+  const slug = url.split('/').pop().split('?')[0];
+  const parts = slug.split('-');
+  
+  // Detect tipo
+  const tipos = { 'casa':'Casa','departamento':'Departamento','depto':'Departamento','ph':'PH','local':'Local','oficina':'Oficina','terreno':'Terreno','cochera':'Cochera' };
+  let tipo = 'Departamento';
+  for (const [k,v] of Object.entries(tipos)) {
+    if (slug.toLowerCase().includes(k)) { tipo = v; break; }
+  }
+  
+  // Detect ambientes
+  const ambMatch = slug.match(/(\d+)-ambientes?/i) || slug.match(/(\d+)-amb/i);
+  const amb = ambMatch ? ambMatch[1] : '';
+  
+  // Detect barrio - last meaningful words before the ID number
+  const idMatch = slug.match(/-(\d{6,})$/);
+  const slugClean = idMatch ? slug.replace(idMatch[0],'') : slug;
+  const words = slugClean.split('-').filter(w => w.length > 3 && isNaN(w) && !['ambientes','cochera','pileta','metros','cuadrados','venta','alquiler','casas','departamentos'].includes(w.toLowerCase()));
+  const barrio = words.slice(-2).map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+  
+  document.getElementById('prop-tipo').value = tipo;
+  document.getElementById('prop-amb').value = amb;
+  document.getElementById('prop-barrio').value = barrio;
+  toast('Datos importados del URL!');
+}
+
+async function saveProp() {
+  const url     = document.getElementById('prop-url').value.trim();
+  const tipo    = document.getElementById('prop-tipo').value;
+  const amb     = document.getElementById('prop-amb').value.trim();
+  const barrio  = document.getElementById('prop-barrio').value.trim();
+  const precio  = document.getElementById('prop-precio').value.trim();
+  const desc    = document.getElementById('prop-desc').value.trim();
+  
+  if (!tipo && !barrio) return toast('Completa al menos tipo y barrio');
+  
+  const { error } = await sb.from('propiedades').insert([{
+    url: url || null, tipo, ambientes: amb, barrio, precio,
+    descripcion: desc, estado: 'Activa', user_id: currentUser.id
+  }]);
+  if (error) { toast('Error al guardar'); console.error(error); return; }
+  
+  ['prop-url','prop-amb','prop-barrio','prop-precio','prop-desc'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  closeM('m-prop');
+  toast('Propiedad guardada!');
+  loadProps();
+}
+
+async function deleteProp(id) {
+  await sb.from('propiedades').delete().eq('id', id);
+  toast('Propiedad eliminada');
+  loadProps();
+}
+
+// Vincular propiedad a lead
+async function openVincular(leadId, leadName) {
+  currentVincularLeadId = leadId;
+  document.getElementById('m-vincular-who').textContent = leadName;
+  
+  // Get already linked
+  const { data: linked } = await sb.from('lead_propiedades').select('propiedad_id').eq('lead_id', leadId);
+  const linkedIds = (linked||[]).map(x => x.propiedad_id);
+  
+  const list = document.getElementById('vincular-list');
+  if (!propsData.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--muted)">No hay propiedades cargadas. Carga una primero.</p>';
+  } else {
+    list.innerHTML = propsData.map(p => {
+      const isLinked = linkedIds.includes(p.id);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <strong style="font-size:13px">${p.tipo||''} ${p.ambientes?p.ambientes+' amb.':''} · ${p.barrio||''}</strong>
+          <div style="font-size:12px;color:var(--muted)">${p.precio||''}</div>
+        </div>
+        <div style="display:flex;gap:5px">
+          ${isLinked 
+            ? `<button class="btn btn-xs btn-ghost" style="color:var(--red)" onclick="desvincular('${p.id}','${leadId}',this)">Quitar</button>`
+            : `<button class="btn btn-xs btn-dark" onclick="vincular('${p.id}','${leadId}',this)">Vincular</button>`
+          }
+          <button class="btn btn-xs btn-ghost" onclick="enviarFicha('${leadId}','${p.id}')">Enviar</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  openM('m-vincular');
+}
+
+async function vincular(propId, leadId, btn) {
+  await sb.from('lead_propiedades').insert([{ lead_id: leadId, propiedad_id: propId, user_id: currentUser.id }]);
+  btn.textContent = 'Vinculado ✓';
+  btn.disabled = true;
+  toast('Propiedad vinculada!');
+  if (currentPanelLeadId === leadId) loadPropiedadesLead(leadId);
+}
+
+async function desvincular(propId, leadId, btn) {
+  await sb.from('lead_propiedades').delete().eq('lead_id', leadId).eq('propiedad_id', propId);
+  btn.textContent = 'Quitado';
+  btn.disabled = true;
+  toast('Propiedad desvinculada');
+  if (currentPanelLeadId === leadId) loadPropiedadesLead(leadId);
+}
+
+async function enviarFicha(leadId, propId) {
+  const lead = leadsData.find(l => l.id === leadId);
+  const prop = propsData.find(p => p.id === propId);
+  if (!lead || !prop) return;
+  
+  const tel = lead.telefono ? lead.telefono.replace(/\D/g,'') : '';
+  if (!tel) return toast('El lead no tiene telefono cargado');
+  
+  const nombre = lead.nombre.split(' ')[0];
+  const lineas = [
+    `Hola ${nombre}! Te comparto esta propiedad que creo que te puede interesar:`,
+    '',
+    `🏠 ${prop.tipo||'Propiedad'} ${prop.ambientes ? prop.ambientes+' ambientes' : ''} | ${prop.barrio||''}`,
+    prop.precio ? `💰 ${prop.precio}` : '',
+    prop.descripcion ? `📝 ${prop.descripcion}` : '',
+    prop.url ? `
+${prop.url}` : ''
+  ].filter(l => l !== null && l !== undefined);
+  
+  const mensaje = lineas.join('
+');
+  const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+  window.open(waUrl, '_blank');
+  registrarContactoRapido(leadId, 'whatsapp');
+  closeM('m-vincular');
+}
+
+async function loadPropiedadesLead(leadId) {
+  const container = document.getElementById('p-props-container');
+  if (!container) return;
+  
+  const { data } = await sb.from('lead_propiedades')
+    .select('propiedad_id')
+    .eq('lead_id', leadId);
+  
+  const ids = (data||[]).map(x => x.propiedad_id);
+  const linked = propsData.filter(p => ids.includes(p.id));
+  
+  if (!linked.length) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:8px 0">Sin propiedades vinculadas</div>';
+    return;
+  }
+  container.innerHTML = linked.map(p => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <strong style="font-size:12.5px">${p.tipo||''} ${p.ambientes?p.ambientes+' amb.':''} · ${p.barrio||''}</strong>
+        <div style="font-size:11px;color:var(--muted)">${p.precio||''}</div>
+      </div>
+      <button class="btn btn-xs btn-dark" onclick="enviarFicha('${leadId}','${p.id}')">Enviar</button>
+    </div>
+  `).join('');
 }
 // ── START ──
 init();
