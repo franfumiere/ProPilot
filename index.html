@@ -459,12 +459,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
         <div><h1>Propiedades</h1><p>Carga propiedades y asocialas a tus leads</p></div>
         <button class="btn btn-dark btn-sm" onclick="openM('m-prop')">+ Nueva propiedad</button>
       </div>
-      <div class="tbl-wrap">
-        <table class="tbl" style="width:100%">
-          <thead><tr><th>Propiedad</th><th>Barrio</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
-          <tbody id="props-tbody"></tbody>
-        </table>
-      </div>
+      <div id="props-cards"></div>
     </div>
   </main>
 </div>
@@ -1393,27 +1388,33 @@ async function loadProps() {
 }
 
 function renderProps() {
-  const tbody = document.getElementById('props-tbody');
-  if (!tbody) return;
-  tbody.innerHTML = propsData.map(p => `
-    <tr>
-      <td>
-        <strong>${p.tipo||''} ${p.ambientes ? p.ambientes+' amb.' : ''}</strong>
-        ${p.descripcion ? `<br><span style="font-size:11px;color:var(--muted)">${p.descripcion.slice(0,60)}${p.descripcion.length>60?'...':''}</span>` : ''}
-      </td>
-      <td style="font-size:13px">${p.barrio||''}</td>
-      <td style="font-size:13px;font-weight:600">${p.precio||''}</td>
-      <td><span class="chip ${p.estado==='Activa'?'c-cont':'c-frio'}">${p.estado||'Activa'}</span></td>
-      <td>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
-          ${p.url ? `<a class="btn btn-xs btn-dark" href="${p.url}" target="_blank">Ver</a>` : ''}
-          <button class="btn btn-xs btn-ghost" onclick="generarFichaPDF('${p.id}')">📄 Ficha</button>
-          <button class="btn btn-xs btn-ghost" onclick="openVincularDesdePropiedad('${p.id}','${(p.tipo||'')+' '+(p.ambientes||'')+' amb. '+( p.barrio||'')}')">Vincular lead</button>
-          <button class="btn btn-xs btn-ghost" onclick="deleteProp('${p.id}')">Eliminar</button>
+  const container = document.getElementById('props-cards');
+  if (!container) return;
+  if (!propsData.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 20px;font-size:14px">No hay propiedades cargadas aún</div>';
+    return;
+  }
+  container.innerHTML = propsData.map(p => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px">${p.tipo||'Propiedad'} ${p.ambientes ? p.ambientes+' amb.' : ''}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">${p.barrio||''}</div>
         </div>
-      </td>
-    </tr>
-  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No hay propiedades cargadas aun</td></tr>';
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:800;font-size:14px">${p.precio||'—'}</div>
+          <span class="chip ${p.estado==='Activa'?'c-cont':'c-frio'}" style="margin-top:4px;display:inline-block">${p.estado||'Activa'}</span>
+        </div>
+      </div>
+      ${p.descripcion ? `<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">${p.descripcion.slice(0,100)}${p.descripcion.length>100?'...':''}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${p.url ? `<a class="btn btn-xs btn-dark" href="${p.url}" target="_blank">Ver</a>` : ''}
+        <button class="btn btn-xs btn-ghost" onclick="generarFichaPDF('${p.id}')">📄 Ficha</button>
+        <button class="btn btn-xs btn-ghost" onclick="openVincularDesdePropiedad('${p.id}','${(p.tipo||'')+' '+(p.ambientes||'')+' amb. '+(p.barrio||'')}')">Vincular lead</button>
+        <button class="btn btn-xs btn-ghost" onclick="deleteProp('${p.id}')">Eliminar</button>
+      </div>
+    </div>
+  `).join('');
 }
 
 async function parsePropUrl() {
