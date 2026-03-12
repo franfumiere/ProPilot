@@ -1326,6 +1326,62 @@ function goMobile(id, el) {
   if (el) el.classList.add('on');
 }
 
+
+// ── PDF FICHA ──
+async function generarFichaPDF(propId) {
+  const prop = propsData.find(p => p.id === propId);
+  if (!prop) return;
+
+  // Build HTML for PDF
+  const features = prop.features ? 
+    (Array.isArray(prop.features) ? prop.features : Object.entries(prop.features).map(([k,v]) => `${k}: ${v}`)).slice(0,6).join(' · ') 
+    : '';
+
+  const imgHtml = prop.imagen_url 
+    ? `<img src="${prop.imagen_url}" style="width:100%;height:220px;object-fit:cover;border-radius:8px;margin-bottom:16px" crossorigin="anonymous">`
+    : `<div style="width:100%;height:220px;background:#f0f0f0;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px">Sin foto disponible</div>`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'Arial', sans-serif; padding: 32px; color: #1a1a1a; max-width: 600px; }
+  .logo { font-size: 22px; font-weight: 900; margin-bottom: 24px; color: #1a1a1a; }
+  .logo em { background: #c8f135; color: #1a1a1a; padding: 0 4px; font-style: normal; }
+  .tipo-badge { display:inline-block; background:#f0f0f0; border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600; margin-bottom:12px; }
+  .precio { font-size: 28px; font-weight: 900; margin-bottom: 8px; color: #1a1a1a; }
+  .direccion { font-size: 14px; color: #666; margin-bottom: 16px; }
+  .features { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .feat { background:#f7f7f7; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; }
+  .desc-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#999; margin-bottom:8px; }
+  .desc { font-size:13px; line-height:1.6; color:#444; margin-bottom:20px; }
+  .footer { border-top: 1px solid #eee; padding-top: 16px; font-size:11px; color:#999; display:flex; justify-content:space-between; }
+  a { color: #1a1a1a; }
+</style>
+</head>
+<body>
+  <div class="logo">Pro<em>Pilot</em></div>
+  ${imgHtml}
+  <div class="tipo-badge">${prop.tipo || 'Propiedad'} en ${prop.estado === 'Activa' ? 'Venta/Alquiler' : prop.estado}</div>
+  <div class="precio">${prop.precio || 'Consultar precio'}</div>
+  <div class="direccion">📍 ${prop.barrio || ''}</div>
+  ${prop.ambientes ? `<div class="features"><span class="feat">🛏 ${prop.ambientes} ambientes</span>${features ? features.split(' · ').map(f => `<span class="feat">${f}</span>`).join('') : ''}</div>` : ''}
+  ${prop.descripcion ? `<div class="desc-title">Descripción</div><div class="desc">${prop.descripcion}</div>` : ''}
+  <div class="footer">
+    <span>${prop.url ? `<a href="${prop.url}">${prop.url.slice(0,50)}...</a>` : ''}</span>
+    <span>Generado con ProPilot</span>
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 800);
+}
+
 // ── PROPIEDADES ──
 let propsData = [];
 let currentVincularLeadId = null;
@@ -1351,6 +1407,7 @@ function renderProps() {
       <td>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           ${p.url ? `<a class="btn btn-xs btn-dark" href="${p.url}" target="_blank">Ver</a>` : ''}
+          <button class="btn btn-xs btn-ghost" onclick="generarFichaPDF('${p.id}')">📄 Ficha</button>
           <button class="btn btn-xs btn-ghost" onclick="openVincularDesdePropiedad('${p.id}','${(p.tipo||'')+' '+(p.ambientes||'')+' amb. '+( p.barrio||'')}')">Vincular lead</button>
           <button class="btn btn-xs btn-ghost" onclick="deleteProp('${p.id}')">Eliminar</button>
         </div>
@@ -1419,7 +1476,7 @@ async function scrapeArgenprop(url) {
     }
     
     const ambMatch = title.match(/(\d+)\s*amb/i);
-    const amb = ambMatch ? ambMatch[1] : (result.details?.ambientes || '');
+    const amb = ambMatch ? ambMatch[1] : '';
     
     const address = result.address || '';
     const barrioParts = address.split(',');
@@ -1433,9 +1490,13 @@ async function scrapeArgenprop(url) {
     document.getElementById('prop-barrio').value = barrio;
     document.getElementById('prop-precio').value = precio ? moneda + ' ' + precio : '';
     if (result.description) {
-      const desc = result.description.replace(/<[^>]*>/g,'').trim().slice(0,200);
+      const desc = result.description.replace(/<[^>]*>/g,'').trim().slice(0,300);
       document.getElementById('prop-desc').value = desc;
     }
+    
+    // Store image and features for when we save
+    window._scrapedImageUrl = (result.images && result.images[0]) ? result.images[0] : null;
+    window._scrapedFeatures = result.features || null;
     
     toast('Datos importados de Argenprop!');
     
@@ -1482,8 +1543,12 @@ async function saveProp() {
   
   const { error } = await sb.from('propiedades').insert([{
     url: url || null, tipo, ambientes: amb, barrio, precio,
-    descripcion: desc, estado: 'Activa', user_id: currentUser.id
+    descripcion: desc, estado: 'Activa', user_id: currentUser.id,
+    imagen_url: window._scrapedImageUrl || null,
+    features: window._scrapedFeatures || null
   }]);
+  window._scrapedImageUrl = null;
+  window._scrapedFeatures = null;
   if (error) { toast('Error al guardar'); console.error(error); return; }
   
   ['prop-url','prop-amb','prop-barrio','prop-precio','prop-desc'].forEach(id => {
@@ -1636,7 +1701,8 @@ async function loadPropiedadesLead(leadId) {
         <strong style="font-size:12.5px">${p.tipo||''} ${p.ambientes?p.ambientes+' amb.':''} · ${p.barrio||''}</strong>
         <div style="font-size:11px;color:var(--muted)">${p.precio||''}</div>
       </div>
-      <button class="btn btn-xs btn-dark" onclick="enviarFicha('${leadId}','${p.id}')">Enviar</button>
+      <button class="btn btn-xs btn-ghost" onclick="generarFichaPDF('${p.id}')">📄 PDF</button>
+        <button class="btn btn-xs btn-dark" onclick="enviarFicha('${leadId}','${p.id}')">WhatsApp</button>
     </div>
   `).join('');
 }
