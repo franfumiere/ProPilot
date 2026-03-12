@@ -222,22 +222,92 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
   .sb-close{display:block;}
   .main{margin-left:0;padding:0;}
   .topbar{display:flex;}
-  .view.on{padding:18px 16px;}
-  .dash-grid{grid-template-columns:1fr;}
-  .stats{grid-template-columns:1fr 1fr;}
-  .stages{grid-template-columns:repeat(3,1fr);}
-  .ph{flex-direction:column;gap:10px;}
+  
+  /* Views */
+  .view.on{padding:16px 14px 80px;}
+  
+  /* Page header */
+  .ph{flex-direction:column;gap:10px;margin-bottom:16px;}
   .ph>div:last-child{width:100%;}
   .ph .btn{width:100%;justify-content:center;}
-  .panel{width:100%;left:0;right:0;}
+  .ph h1{font-size:18px;}
+  
+  /* Stats */
+  .stats{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .stat{padding:11px 12px;}
+  .stat-v{font-size:22px;}
+  
+  /* Dash grid - single column */
+  .dash-grid{grid-template-columns:1fr;gap:14px;}
+  
+  /* Stages */
+  .stages{grid-template-columns:repeat(3,1fr);gap:7px;}
+  .stage{padding:9px 10px;}
+  .stage-n{font-size:18px;}
+  
+  /* Table - hide less important columns */
   .tbl th:nth-child(2),.tbl td:nth-child(2),
   .tbl th:nth-child(3),.tbl td:nth-child(3){display:none;}
+  .tbl th:nth-child(5),.tbl td:nth-child(5){display:none;}
+  .tbl td,.tbl th{padding:8px 8px;}
+  
+  /* Table action buttons - stack vertically */
+  .tbl td:last-child > div{flex-wrap:wrap;gap:4px;}
+  
+  /* Panel - full screen on mobile */
+  .panel{width:100%;left:0;right:0;top:0;}
+  
+  /* Modal */
   .fl{grid-template-columns:1fr;}
+  .modal{padding:18px;}
+  
+  /* Reminder cards */
+  .rec-top{flex-wrap:wrap;gap:6px;}
+  .rec-actions{gap:5px;}
+  
+  /* Suggestion cards */
+  .suggest-card{flex-wrap:wrap;gap:8px;}
+  .suggest-actions{width:100%;justify-content:flex-end;}
+  
+  /* Search bar */
+  .srch input{width:100px;}
+  
+  /* Bottom nav for mobile */
+  .mobile-nav{display:flex;}
 }
+
+/* Mobile bottom navigation */
+.mobile-nav{
+  display:none;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  background:var(--sidebar);
+  border-top:1px solid rgba(255,255,255,.1);
+  z-index:200;
+  padding:8px 0 12px;
+}
+.mobile-nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:rgba(255,255,255,.4);font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.5px;cursor:pointer;
+  padding:4px 0;transition:color .12s;
+}
+.mobile-nav-item.on{color:#c8f55a;}
+.mobile-nav-item span:first-child{font-size:18px;}
+.mobile-nav-badge{
+  position:absolute;top:-2px;right:calc(50% - 16px);
+  background:var(--red);color:#fff;font-size:9px;font-weight:700;
+  padding:1px 4px;border-radius:10px;min-width:14px;text-align:center;
+}
+.mobile-nav-item{position:relative;}
+
 @media(max-width:480px){
-  .stats{grid-template-columns:1fr;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .stat-v{font-size:19px;}
   .stages{grid-template-columns:1fr 1fr;}
-  .stat-v{font-size:20px;}
+  .view.on{padding:14px 12px 80px;}
+  .ph h1{font-size:17px;}
+  .rec-urgency{font-size:9px;}
 }
 </style>
 </head>
@@ -472,6 +542,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     </div>
   </div>
 </div>
+<!-- MOBILE NAV -->
+<nav class="mobile-nav" id="mobile-nav">
+  <div class="mobile-nav-item on" onclick="goMobile('dash',this)">
+    <span>◈</span><span>Dashboard</span>
+  </div>
+  <div class="mobile-nav-item" onclick="goMobile('leads',this)">
+    <span>⚡</span><span>Leads</span>
+    <span class="mobile-nav-badge" id="mn-leads-count" style="display:none">0</span>
+  </div>
+  <div class="mobile-nav-item" onclick="goMobile('recs',this)">
+    <span>🔔</span><span>Recordatorios</span>
+    <span class="mobile-nav-badge" id="mn-rec-count" style="display:none">0</span>
+  </div>
+  <div class="mobile-nav-item" onclick="openM('m-lead')">
+    <span>＋</span><span>Nuevo</span>
+  </div>
+</nav>
 <div class="toast" id="toastEl"></div>
 
 <script>
@@ -659,6 +746,8 @@ function computeReminders() {
   const total = reminders.length;
   document.getElementById('sb-rec-count').textContent = total;
   document.getElementById('sb-rec-count').style.display = total > 0 ? '' : 'none';
+  const mnRec = document.getElementById('mn-rec-count');
+  if (mnRec) { mnRec.textContent = total; mnRec.style.display = total > 0 ? '' : 'none'; }
   const countEl = document.getElementById('dash-rec-count');
   if (countEl) { countEl.textContent = total + ' pendientes'; countEl.className = 'sec-count ' + (total > 0 ? 'red' : 'grn'); }
   document.getElementById('stat-recs').textContent = total;
@@ -717,6 +806,8 @@ function resolveRec(id) {
   const total = reminders.length;
   document.getElementById('sb-rec-count').textContent = total;
   document.getElementById('sb-rec-count').style.display = total > 0 ? '' : 'none';
+  const mnRec = document.getElementById('mn-rec-count');
+  if (mnRec) { mnRec.textContent = total; mnRec.style.display = total > 0 ? '' : 'none'; }
   document.getElementById('stat-recs').textContent = total;
   const countEl = document.getElementById('dash-rec-count');
   if (countEl) countEl.textContent = total > 0 ? total + ' pendientes' : 'Todo al dia!';
@@ -774,6 +865,8 @@ function updateStats() {
   document.getElementById('stat-leads').textContent = active;
   document.getElementById('stat-cold').textContent = cold;
   document.getElementById('sb-leads-count').textContent = active;
+  const mnLeads = document.getElementById('mn-leads-count');
+  if (mnLeads) { mnLeads.textContent = active; mnLeads.style.display = active > 0 ? '' : 'none'; }
 }
 
 // ── LEADS RENDER ──
@@ -791,7 +884,7 @@ function renderDashLeads() {
     return `<tr onclick="openPanelLead('${l.id}')">
       <td><strong>${l.nombre}</strong><br><span style="font-size:11px;${subColor}">${subText}</span><br>${relBadge}</td>
       <td><span class="chip ${estadoClass(l.estado)}">${l.estado}</span></td>
-      <td onclick="event.stopPropagation()"><a class="btn btn-xs btn-ghost" href="${wa}" target="_blank">Escribir</a></td>
+      <td onclick="event.stopPropagation()"><a class="btn btn-xs btn-ghost" href="${wa}" target="_blank" onclick="registrarContactoRapido('${l.id}','whatsapp')">Escribir</a></td>
     </tr>`;
   }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">No hay leads aun</td></tr>';
 }
@@ -828,8 +921,8 @@ function renderLeadsTable() {
       <td style="font-size:12px;${tColor}">${timeSince(l.ultimo_contacto)}</td>
       <td onclick="event.stopPropagation()"><div style="display:flex;gap:5px">
         <button class="btn btn-xs btn-dark" onclick="openPanelLead('${l.id}')">Ver</button>
-        <a class="btn btn-xs btn-ghost" href="${wa}" target="_blank">WhatsApp</a>
-        <a class="btn btn-xs btn-ghost" href="${call}">Llamar</a>
+        <a class="btn btn-xs btn-ghost" href="${wa}" target="_blank" onclick="registrarContactoRapido('${l.id}','whatsapp')">WhatsApp</a>
+        <a class="btn btn-xs btn-ghost" href="${call}" onclick="registrarContactoRapido('${l.id}','llamada')">Llamar</a>
       </div></td>
     </tr>`;
   }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No hay leads aun. Crea el primero!</td></tr>';
@@ -1141,6 +1234,13 @@ function relBadgeHTML(leadId) {
   };
   const [cls, label] = map[r];
   return `<span class="rel-badge ${cls}">${label}</span>`;
+}
+
+// ── MOBILE NAV ──
+function goMobile(id, el) {
+  go(id, document.querySelectorAll('.sb-item')[['dash','leads','recs'].indexOf(id)]);
+  document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('on'));
+  if (el) el.classList.add('on');
 }
 // ── START ──
 init();
