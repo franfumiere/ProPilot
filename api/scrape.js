@@ -15,7 +15,11 @@ module.exports = async function handler(req, res) {
     const startRes = await fetch(`https://api.apify.com/v2/acts/${ARGENPROP_ACTOR}/runs?token=${APIFY_TOKEN}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ startUrls: [{ url }], maxItems: 1 })
+      body: JSON.stringify({
+        urls: [url],
+        max_retries_per_url: 2,
+        proxy: { useApifyProxy: false }
+      })
     });
     const startData = await startRes.json();
     const runId = startData.data?.id;
