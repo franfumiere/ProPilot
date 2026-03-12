@@ -1,5 +1,4 @@
 module.exports = async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,7 +12,6 @@ module.exports = async function handler(req, res) {
   const ARGENPROP_ACTOR = 'fBSvbyQ5dHGq5efbX';
 
   try {
-    // Start Apify run
     const startRes = await fetch(`https://api.apify.com/v2/acts/${ARGENPROP_ACTOR}/runs?token=${APIFY_TOKEN}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -23,7 +21,6 @@ module.exports = async function handler(req, res) {
     const runId = startData.data?.id;
     if (!runId) return res.status(500).json({ error: 'No se pudo iniciar el scraping' });
 
-    // Poll for completion (max 60s)
     let result = null;
     for (let i = 0; i < 20; i++) {
       await new Promise(r => setTimeout(r, 3000));
