@@ -217,11 +217,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 
 /* RESPONSIVE */
 @media(max-width:768px){
-  .sb{transform:translateX(-100%);visibility:hidden;}
+  .app.on{display:block;}
+  .sb{transform:translateX(-100%);visibility:hidden;position:fixed;}
   .sb.mobile-open{transform:translateX(0);visibility:visible;}
   .sb-close{display:block;}
-  .main{margin-left:0 !important;padding:0;}
-  .app{display:block;}
+  .main{margin-left:0 !important;width:100%;padding:0;}
   .topbar{display:flex;}
   
   /* Views */
