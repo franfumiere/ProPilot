@@ -632,6 +632,10 @@ const SUPA_KEY = 'sb_publishable_gNNUvK6kQQqisFAwYpFEHA_DfKVvB1e';
 const { createClient } = supabase;
 const sb = createClient(SUPA_URL, SUPA_KEY);
 
+// ── APIFY ──
+const APIFY_TOKEN = 'apify_api_WpejPszhZRHFi111fZS5P6UrqJJxJF3F6t72';
+const ARGENPROP_ACTOR = 'fBSvbyQ5dHGq5efbX';
+
 // ── STATE ──
 let currentUser = null;
 let leadsData = [];
@@ -1348,38 +1352,116 @@ function renderProps() {
   `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">No hay propiedades cargadas aun</td></tr>';
 }
 
-function parsePropUrl() {
+async function parsePropUrl() {
   const url = document.getElementById('prop-url').value.trim();
-  if (!url) return;
+  if (!url) return toast('Pega una URL primero');
   
-  // Extract info from URL slug
-  const slug = url.split('/').pop().split('?')[0];
-  const parts = slug.split('-');
+  const isArgenprop = url.includes('argenprop.com');
+  const isZonaprop = url.includes('zonaprop.com');
   
-  // Detect tipo
-  const tipos = { 'casa':'Casa','departamento':'Departamento','depto':'Departamento','ph':'PH','local':'Local','oficina':'Oficina','terreno':'Terreno','cochera':'Cochera' };
+  if (isArgenprop) {
+    await scrapeArgenprop(url);
+  } else {
+    // ZonaProp / otros: parse desde URL
+    parseFromSlug(url);
+  }
+}
+
+async function scrapeArgenprop(url) {
+  const btn = document.querySelector('[onclick="parsePropUrl()"]');
+  if (btn) { btn.textContent = 'Importando...'; btn.disabled = true; }
+  toast('Conectando con Argenprop...');
+  
+  try {
+    // Start Apify run
+    const startRes = await fetch(`https://api.apify.com/v2/acts/${ARGENPROP_ACTOR}/runs?token=${APIFY_TOKEN}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startUrls: [{ url }], maxItems: 1 })
+    });
+    const startData = await startRes.json();
+    const runId = startData.data?.id;
+    if (!runId) throw new Error('No se pudo iniciar el scraping');
+    
+    toast('Extrayendo datos de Argenprop...');
+    
+    // Poll for completion
+    let attempts = 0;
+    let result = null;
+    while (attempts < 20) {
+      await new Promise(r => setTimeout(r, 3000));
+      const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${APIFY_TOKEN}`);
+      const statusData = await statusRes.json();
+      const status = statusData.data?.status;
+      if (status === 'SUCCEEDED') {
+        // Get results
+        const datasetId = statusData.data?.defaultDatasetId;
+        const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}`);
+        const items = await itemsRes.json();
+        result = items[0];
+        break;
+      } else if (status === 'FAILED' || status === 'ABORTED') {
+        throw new Error('Scraping fallido');
+      }
+      attempts++;
+    }
+    
+    if (!result) throw new Error('Timeout');
+    
+    // Fill form with scraped data
+    const title = result.title || '';
+    const tipos = { 'casa':'Casa','departamento':'Departamento','depto':'Departamento','ph':'PH','local':'Local','oficina':'Oficina','terreno':'Terreno' };
+    let tipo = 'Departamento';
+    for (const [k,v] of Object.entries(tipos)) {
+      if (title.toLowerCase().includes(k)) { tipo = v; break; }
+    }
+    
+    const ambMatch = title.match(/(\d+)\s*amb/i);
+    const amb = ambMatch ? ambMatch[1] : (result.details?.ambientes || '');
+    
+    const address = result.address || '';
+    const barrioParts = address.split(',');
+    const barrio = barrioParts.length > 1 ? barrioParts[barrioParts.length-2].trim() : barrioParts[0].trim();
+    
+    const precio = result.price ? result.price.toString().replace(/[^0-9.,]/g,'').trim() : '';
+    const moneda = result.price && result.price.toString().includes('USD') ? 'USD' : '$';
+    
+    document.getElementById('prop-tipo').value = tipo;
+    document.getElementById('prop-amb').value = amb;
+    document.getElementById('prop-barrio').value = barrio;
+    document.getElementById('prop-precio').value = precio ? moneda + ' ' + precio : '';
+    if (result.description) {
+      const desc = result.description.replace(/<[^>]*>/g,'').trim().slice(0,200);
+      document.getElementById('prop-desc').value = desc;
+    }
+    
+    toast('Datos importados de Argenprop!');
+    
+  } catch(e) {
+    console.error(e);
+    toast('Error al importar. Completá los datos manualmente.');
+    parseFromSlug(url);
+  } finally {
+    if (btn) { btn.textContent = 'Importar'; btn.disabled = false; }
+  }
+}
+
+function parseFromSlug(url) {
+  const slug = url.split('/').pop().split('?')[0].replace('.html','');
+  const tipos = { 'casa':'Casa','departamento':'Departamento','depto':'Departamento','ph':'PH','local':'Local','oficina':'Oficina','terreno':'Terreno' };
   let tipo = 'Departamento';
   for (const [k,v] of Object.entries(tipos)) {
     if (slug.toLowerCase().includes(k)) { tipo = v; break; }
   }
-  
-  // Detect ambientes
-  const ambMatch = slug.match(/(\d+)-ambientes?/i) || slug.match(/(\d+)-amb/i);
+  const ambMatch = slug.match(/(\d+)-ambientes?/i);
   const amb = ambMatch ? ambMatch[1] : '';
-  
-  // Detect barrio - look for "-en-" pattern in slug
   const idMatch = slug.match(/-(\d{6,})$/);
   const slugClean = idMatch ? slug.replace(idMatch[0],'') : slug;
   const enMatch = slugClean.match(/-en-(.+)$/i);
   let barrio = '';
   if (enMatch) {
     barrio = enMatch[1].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-  } else {
-    const noise = ['ambientes','cochera','pileta','metros','venta','alquiler','casas','departamentos','amenities','clasificado','con','sin','del'];
-    const words = slugClean.split('-').filter(w => w.length > 3 && isNaN(w) && !noise.includes(w.toLowerCase()));
-    barrio = words.slice(-2).map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
   }
-  
   document.getElementById('prop-tipo').value = tipo;
   document.getElementById('prop-amb').value = amb;
   document.getElementById('prop-barrio').value = barrio;
