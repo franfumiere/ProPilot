@@ -622,6 +622,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <div class="mf"><button class="btn btn-ghost" onclick="closeM('m-vincular')">Cerrar</button></div>
   </div>
 </div>
+
+<!-- MODAL MENSAJE COPILOTO -->
+<div class="modal-ov" id="m-mensaje">
+  <div class="modal" style="max-width:420px">
+    <h2>Enviar mensaje</h2>
+    <div class="modal-sub" id="msg-modal-title"></div>
+    <div class="fr" style="margin-top:12px">
+      <label>Mensaje</label>
+      <textarea id="msg-textarea" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:100px"></textarea>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('m-mensaje')">Cancelar</button>
+      <button class="btn btn-dark" onclick="enviarMensajeCopiloto()">Enviar por WhatsApp</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toastEl"></div>
 
 <script>
@@ -879,48 +895,168 @@ function resolveRec(id) {
 }
 
 // ── SUGGESTIONS ──
+function runMotor() {
+  const now = new Date();
+  const alerts = [];
+
+  leadsData.forEach(l => {
+    if (l.estado === 'Cerrado') return;
+    const dias = diasDesde(l.ultimo_contacto);
+    const nombre = l.nombre.split(' ')[0];
+
+    // Regla 1: Sin primer contacto en 24hs
+    if (l.estado === 'Nuevo' && dias >= 1) {
+      alerts.push({
+        prioridad: 1,
+        icono: '⚡',
+        titulo: 'Sin primer contacto',
+        lead: l,
+        motivo: `Lead nuevo hace ${dias} día${dias>1?'s':''} sin contacto`,
+        tag: 'urgente',
+        mensaje: `Hola ${nombre}! Vi tu consulta. ¿Qué tipo de propiedad estás buscando? Cuéntame un poco más para ayudarte mejor.`
+      });
+    }
+
+    // Regla 2: Sin respuesta +5 días (no frío)
+    else if (dias >= 5 && dias < 60 && l.estado !== 'Frio') {
+      alerts.push({
+        prioridad: dias >= 10 ? 1 : 2,
+        icono: '🔔',
+        titulo: 'Hacer seguimiento',
+        lead: l,
+        motivo: `Sin contacto hace ${dias} días`,
+        tag: dias >= 10 ? 'urgente' : 'importante',
+        mensaje: `Hola ${nombre}, ¿cómo estás? Quería saber si seguís buscando o si puedo ayudarte con algo nuevo que tengo.`
+      });
+    }
+
+    // Regla 3: Post-visita sin seguimiento (visita registrada en las últimas 72hs)
+    // Check via reminders data - if has post-visita reminder pending
+    const tieneVisitaReciente = reminders.some(r => r.leadId === l.id && r.id?.includes('visita'));
+    if (tieneVisitaReciente) {
+      alerts.push({
+        prioridad: 1,
+        icono: '🏠',
+        titulo: 'Seguimiento post-visita',
+        lead: l,
+        motivo: 'Visitó una propiedad recientemente',
+        tag: 'urgente',
+        mensaje: `Hola ${nombre}, ¿qué te pareció la propiedad que vimos? ¿Tenés alguna duda o querés ver algo más?`
+      });
+    }
+
+    // Regla 4: Lead enfriándose +30 días
+    if (dias >= 30 && dias < 60 && l.estado !== 'Frio') {
+      alerts.push({
+        prioridad: 3,
+        icono: '❄️',
+        titulo: 'Lead enfriándose',
+        lead: l,
+        motivo: `${dias} días sin contacto`,
+        tag: 'atención',
+        mensaje: `Hola ${nombre}, hace un tiempo que no hablamos. ¿Seguís buscando? Tengo opciones nuevas que podrían interesarte.`
+      });
+    }
+
+    // Regla 5: Lead reactivado (estaba frío y tiene contacto reciente < 3 días)
+    if (l.estado === 'Frio' && dias < 3) {
+      alerts.push({
+        prioridad: 1,
+        icono: '🔥',
+        titulo: 'Lead reactivado',
+        lead: l,
+        motivo: 'Volvió a contactarse después de estar frío',
+        tag: 'urgente',
+        mensaje: `Hola ${nombre}, qué bueno saber de vos! ¿En qué te puedo ayudar? Cuéntame qué estás buscando.`
+      });
+    }
+
+    // Regla 6: Cerrar lead muerto +60 días
+    if (dias >= 60 && l.estado !== 'Frio') {
+      alerts.push({
+        prioridad: 4,
+        icono: '💀',
+        titulo: 'Lead sin actividad',
+        lead: l,
+        motivo: `${dias} días sin ningún contacto`,
+        tag: 'info',
+        mensaje: `Hola ${nombre}, sé que hace mucho que no hablamos. Si seguís buscando, puedo ayudarte. Si no, no te molesto más.`
+      });
+    }
+  });
+
+  // Sort by priority
+  alerts.sort((a,b) => a.prioridad - b.prioridad);
+  return alerts.slice(0, 8); // max 8 alerts
+}
+
 function renderDashSuggestions() {
   const container = document.getElementById('dash-suggestions');
   if (!container) return;
-  const sorted = [...leadsData].sort((a,b) => diasDesde(a.ultimo_contacto) - diasDesde(b.ultimo_contacto));
-  const todayPick = sorted.find(l => diasDesde(l.ultimo_contacto) >= 3 && l.estado !== 'Frio');
-  const weekPick  = sorted.find(l => l.id !== todayPick?.id && diasDesde(l.ultimo_contacto) >= 14);
 
-  let html = '';
-  if (todayPick) {
-    const tel = todayPick.telefono ? todayPick.telefono.replace(/\D/g,'') : '';
-    const wa = tel ? 'https://wa.me/' + tel : '#';
-    html += `<div class="suggest-card">
-      <div class="suggest-icon">💬</div>
+  const alerts = runMotor();
+
+  if (!alerts.length) {
+    container.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:var(--muted);text-align:center">✅ Todo al día — no hay acciones pendientes</div>';
+    return;
+  }
+
+  const tagColors = {
+    'urgente': '#ef4444',
+    'importante': '#f59e0b',
+    'atención': '#3b82f6',
+    'info': '#6b7280'
+  };
+
+  container.innerHTML = `
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px">
+      🤖 Copiloto — ${alerts.length} acción${alerts.length>1?'es':''} sugerida${alerts.length>1?'s':''}
+    </div>
+    ${alerts.map(a => `
+    <div class="suggest-card" style="border-left:3px solid ${tagColors[a.tag]||'#ccc'}">
+      <div class="suggest-icon">${a.icono}</div>
       <div class="suggest-body">
-        <div class="suggest-title">Escribile hoy</div>
-        <div class="suggest-name">${todayPick.nombre}</div>
-        <div class="suggest-why">Hace ${diasDesde(todayPick.ultimo_contacto)} dias sin contacto</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <div class="suggest-title">${a.titulo}</div>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;color:${tagColors[a.tag]};background:${tagColors[a.tag]}18;padding:2px 6px;border-radius:4px">${a.tag}</span>
+        </div>
+        <div class="suggest-name">${a.lead.nombre}</div>
+        <div class="suggest-why">${a.motivo}</div>
       </div>
       <div class="suggest-actions">
-        <a class="btn btn-xs btn-dark" href="${wa}" target="_blank">Escribir</a>
-        <button class="btn btn-xs btn-ghost" onclick="openPanelLead('${todayPick.id}')">Ver</button>
+        <button class="btn btn-xs btn-dark" data-lid="${a.lead.id}" data-name="${a.lead.nombre}" data-tel="${a.lead.telefono||''}" data-msg="${encodeURIComponent(a.mensaje)}" onclick="openMensajeModalFromBtn(this)">Enviar</button>
+        <button class="btn btn-xs btn-ghost" onclick="openPanelLead('${a.lead.id}')">Ver</button>
       </div>
-    </div>`;
-  }
-  if (weekPick) {
-    const tel = weekPick.telefono ? weekPick.telefono.replace(/\D/g,'') : '';
-    const wa = tel ? 'https://wa.me/' + tel : '#';
-    html += `<div class="suggest-card">
-      <div class="suggest-icon">☕</div>
-      <div class="suggest-body">
-        <div class="suggest-title">Toma un cafe esta semana</div>
-        <div class="suggest-name">${weekPick.nombre}</div>
-        <div class="suggest-why">Hace ${diasDesde(weekPick.ultimo_contacto)} dias sin contacto</div>
-      </div>
-      <div class="suggest-actions">
-        <a class="btn btn-xs btn-dark" href="${wa}" target="_blank">Escribir</a>
-        <button class="btn btn-xs btn-ghost" onclick="openPanelLead('${weekPick.id}')">Ver</button>
-      </div>
-    </div>`;
-  }
-  container.innerHTML = html;
+    </div>
+    `).join('')}
+  `;
 }
+
+let _msgLeadId, _msgTel;
+function openMensajeModalFromBtn(btn) {
+  const leadId = btn.dataset.lid;
+  const nombre = btn.dataset.name;
+  const tel = btn.dataset.tel;
+  const mensaje = decodeURIComponent(btn.dataset.msg);
+  openMensajeModal(leadId, nombre, tel, mensaje);
+}
+function openMensajeModal(leadId, nombre, tel, mensaje) {
+  _msgLeadId = leadId;
+  _msgTel = tel;
+  document.getElementById('msg-modal-title').textContent = nombre;
+  document.getElementById('msg-textarea').value = mensaje;
+  openM('m-mensaje');
+}
+function enviarMensajeCopiloto() {
+  const texto = document.getElementById('msg-textarea').value.trim();
+  if (!texto || !_msgTel) return toast('Sin teléfono cargado');
+  const tel = _msgTel.replace(/\D/g,'');
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank');
+  registrarContactoRapido(_msgLeadId, 'whatsapp');
+  closeM('m-mensaje');
+  toast('Mensaje enviado!');
+}
+
 
 // ── STATS ──
 function updateStats() {
