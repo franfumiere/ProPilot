@@ -1046,6 +1046,45 @@ function renderDashSuggestions() {
     'info': '#6b7280'
   };
 
+  // Daily picks — complementary to alerts
+  const sorted = [...leadsData].filter(l => l.estado !== 'Frio' && l.estado !== 'Cerrado')
+    .sort((a,b) => diasDesde(b.ultimo_contacto) - diasDesde(a.ultimo_contacto));
+  const todayPick = sorted[0];
+  const weekPick  = sorted.find(l => l.id !== todayPick?.id && diasDesde(l.ultimo_contacto) >= 14);
+
+  let picksHtml = '';
+  if (todayPick) {
+    const tel = todayPick.telefono ? todayPick.telefono.replace(/\D/g,'') : '';
+    const wa = tel ? 'https://wa.me/' + tel : '#';
+    picksHtml += `<div class="suggest-card">
+      <div class="suggest-icon">💬</div>
+      <div class="suggest-body">
+        <div class="suggest-title">Escribile hoy</div>
+        <div class="suggest-name">${todayPick.nombre}</div>
+        <div class="suggest-why">Hace ${diasDesde(todayPick.ultimo_contacto)} días sin contacto</div>
+      </div>
+      <div class="suggest-actions">
+        <button class="btn btn-xs btn-dark" data-lid="${todayPick.id}" data-name="${todayPick.nombre}" data-tel="${todayPick.telefono||''}" data-msg="${encodeURIComponent(getMensaje('sin_seguimiento', todayPick.nombre))}" onclick="openMensajeModalFromBtn(this)">Escribir</button>
+        <button class="btn btn-xs btn-ghost" onclick="openPanelLead('${todayPick.id}')">Ver</button>
+      </div>
+    </div>`;
+  }
+  if (weekPick) {
+    const tel = weekPick.telefono ? weekPick.telefono.replace(/\D/g,'') : '';
+    picksHtml += `<div class="suggest-card">
+      <div class="suggest-icon">☕</div>
+      <div class="suggest-body">
+        <div class="suggest-title">Tomá un café</div>
+        <div class="suggest-name">${weekPick.nombre}</div>
+        <div class="suggest-why">Hace ${diasDesde(weekPick.ultimo_contacto)} días — hora de reconectar</div>
+      </div>
+      <div class="suggest-actions">
+        <button class="btn btn-xs btn-dark" data-lid="${weekPick.id}" data-name="${weekPick.nombre}" data-tel="${weekPick.telefono||''}" data-msg="${encodeURIComponent(getMensaje('enfriandose', weekPick.nombre))}" onclick="openMensajeModalFromBtn(this)">Escribir</button>
+        <button class="btn btn-xs btn-ghost" onclick="openPanelLead('${weekPick.id}')">Ver</button>
+      </div>
+    </div>`;
+  }
+
   container.innerHTML = `
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px">
       🤖 Copiloto — ${alerts.length} acción${alerts.length>1?'es':''} sugerida${alerts.length>1?'s':''}
@@ -1067,6 +1106,7 @@ function renderDashSuggestions() {
       </div>
     </div>
     `).join('')}
+    ${picksHtml}
   `;
 }
 
