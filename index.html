@@ -1025,6 +1025,15 @@ function renderDashSuggestions() {
 
   const alerts = runMotor();
 
+  if (!leadsData.length) {
+    container.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px 20px;margin-bottom:16px;text-align:center">
+      <div style="font-size:32px;margin-bottom:12px">👋</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:8px">Bienvenido a ProPilot</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Todavía no tenés leads cargados.<br>Agregá tu primer lead o esperá que llegue uno automáticamente.</div>
+      <button class="btn btn-dark" onclick="openM('m-lead')">+ Agregar primer lead</button>
+    </div>`;
+    return;
+  }
   if (!alerts.length) {
     container.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:var(--muted);text-align:center">✅ Todo al día — no hay acciones pendientes</div>';
     return;
@@ -1223,6 +1232,7 @@ function openPanelLead(id) {
     <a class="btn btn-ghost btn-sm" href="${call}" onclick="registrarContactoRapido('${l.id}','llamada')">📞 Llamar</a>
     <button class="btn btn-ghost btn-sm" onclick="openStatusRec('${l.id}','${l.nombre}')">Mover estado</button>
     <button class="btn btn-ghost btn-sm" onclick="openContactoModal('${l.id}','${l.nombre}')">+ Registrar</button>
+    <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="confirmarEliminarLead('${l.id}','${l.nombre}')">Eliminar</button>
   `;
   const rows = [
     ['Telefono', l.telefono ? `<a href="tel:${l.telefono}">${l.telefono}</a>` : 'No cargado'],
@@ -1878,6 +1888,7 @@ async function saveProp() {
 }
 
 async function deleteProp(id) {
+  if (!confirm('¿Eliminár esta propiedad? Esta acción no se puede deshacer.')) return;
   await sb.from('propiedades').delete().eq('id', id);
   toast('Propiedad eliminada');
   loadProps();
@@ -2024,6 +2035,18 @@ async function loadPropiedadesLead(leadId) {
     </div>
   `).join('');
 }
+
+async function confirmarEliminarLead(id, nombre) {
+  if (!confirm('¿Eliminar a ' + nombre + '? Esta acción no se puede deshacer.')) return;
+  await sb.from('contactos').delete().eq('lead_id', id);
+  await sb.from('recordatorios').delete().eq('lead_id', id);
+  await sb.from('lead_propiedades').delete().eq('lead_id', id);
+  await sb.from('leads').delete().eq('id', id);
+  closePanel();
+  toast('Lead eliminado');
+  loadLeads();
+}
+
 // ── START ──
 init();
 </script>
