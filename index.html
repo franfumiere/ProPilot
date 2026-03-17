@@ -355,6 +355,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     <div class="sb-item" onclick="go('leads',this)"><span>⚡</span> Leads <span class="sb-badge red" id="sb-leads-count">0</span></div>
     <div class="sb-item" onclick="go('recs',this)"><span>🔔</span> Recordatorios <span class="sb-badge red" id="sb-rec-count">0</span></div>
     <div class="sb-item" onclick="go('props',this)"><span>🏠</span> Propiedades</div>
+    <div class="sb-item" onclick="go('config',this)"><span>⚙️</span> Configuración</div>
     <div class="sb-foot">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="sb-av" id="sb-av">?</div>
@@ -460,6 +461,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
         <button class="btn btn-dark btn-sm" onclick="openM('m-prop')">+ Nueva propiedad</button>
       </div>
       <div id="props-cards"></div>
+    </div>
+
+    <!-- CONFIGURACION -->
+    <div class="view" id="view-config">
+      <div class="ph">
+        <div><h1>Configuración</h1><p>Personalizá los mensajes del Copiloto</p></div>
+      </div>
+      <div style="max-width:600px">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:16px">✉️ Plantillas de mensajes</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Usá <strong>{nombre}</strong> donde quieras que aparezca el nombre del lead.</div>
+          <div id="plantillas-form"></div>
+          <button class="btn btn-dark" style="margin-top:16px" onclick="savePlantillas()">Guardar cambios</button>
+        </div>
+      </div>
     </div>
   </main>
 </div>
@@ -742,6 +758,7 @@ function enterApp() {
   document.getElementById('dash-greeting').textContent = greeting + ', ' + name.split(' ')[0] + '!';
   loadLeads();
   loadProps();
+  loadPlantillas();
 }
 
 // ── LEADS ──
@@ -913,7 +930,7 @@ function runMotor() {
         lead: l,
         motivo: `Lead nuevo hace ${dias} día${dias>1?'s':''} sin contacto`,
         tag: 'urgente',
-        mensaje: `Hola ${nombre}! Vi tu consulta. ¿Qué tipo de propiedad estás buscando? Cuéntame un poco más para ayudarte mejor.`
+        mensaje: getMensaje('sin_primer_contacto', l.nombre)
       });
     }
 
@@ -926,7 +943,7 @@ function runMotor() {
         lead: l,
         motivo: `Sin contacto hace ${dias} días`,
         tag: dias >= 10 ? 'urgente' : 'importante',
-        mensaje: `Hola ${nombre}, ¿cómo estás? Quería saber si seguís buscando o si puedo ayudarte con algo nuevo que tengo.`
+        mensaje: getMensaje('sin_seguimiento', l.nombre)
       });
     }
 
@@ -941,7 +958,7 @@ function runMotor() {
         lead: l,
         motivo: 'Visitó una propiedad recientemente',
         tag: 'urgente',
-        mensaje: `Hola ${nombre}, ¿qué te pareció la propiedad que vimos? ¿Tenés alguna duda o querés ver algo más?`
+        mensaje: getMensaje('post_visita', l.nombre)
       });
     }
 
@@ -954,7 +971,7 @@ function runMotor() {
         lead: l,
         motivo: `${dias} días sin contacto`,
         tag: 'atención',
-        mensaje: `Hola ${nombre}, hace un tiempo que no hablamos. ¿Seguís buscando? Tengo opciones nuevas que podrían interesarte.`
+        mensaje: getMensaje('enfriandose', l.nombre)
       });
     }
 
@@ -967,7 +984,7 @@ function runMotor() {
         lead: l,
         motivo: 'Volvió a contactarse después de estar frío',
         tag: 'urgente',
-        mensaje: `Hola ${nombre}, qué bueno saber de vos! ¿En qué te puedo ayudar? Cuéntame qué estás buscando.`
+        mensaje: getMensaje('reactivado', l.nombre)
       });
     }
 
@@ -980,7 +997,7 @@ function runMotor() {
         lead: l,
         motivo: `${dias} días sin ningún contacto`,
         tag: 'info',
-        mensaje: `Hola ${nombre}, sé que hace mucho que no hablamos. Si seguís buscando, puedo ayudarte. Si no, no te molesto más.`
+        mensaje: getMensaje('sin_actividad', l.nombre)
       });
     }
   });
@@ -1511,6 +1528,58 @@ async function generarFichaPDF(propId) {
   win.document.write(html);
   win.document.close();
   setTimeout(() => win.print(), 800);
+}
+
+
+// ── PLANTILLAS ──
+const PLANTILLAS_DEFAULT = {"sin_primer_contacto": "Hola {nombre}! Vi tu consulta. \u00bfQu\u00e9 tipo de propiedad est\u00e1s buscando? Cu\u00e9ntame un poco m\u00e1s para ayudarte mejor.", "sin_seguimiento": "Hola {nombre}, \u00bfc\u00f3mo est\u00e1s? Quer\u00eda saber si segu\u00eds buscando o si puedo ayudarte con algo nuevo que tengo.", "post_visita": "Hola {nombre}, \u00bfqu\u00e9 te pareci\u00f3 la propiedad que vimos? \u00bfTen\u00e9s alguna duda o quer\u00e9s ver algo m\u00e1s?", "enfriandose": "Hola {nombre}, hace un tiempo que no hablamos. \u00bfSegu\u00eds buscando? Tengo opciones nuevas que podr\u00edan interesarte.", "reactivado": "Hola {nombre}, qu\u00e9 bueno saber de vos! \u00bfEn qu\u00e9 te puedo ayudar? Cu\u00e9ntame qu\u00e9 est\u00e1s buscando.", "sin_actividad": "Hola {nombre}, s\u00e9 que hace mucho que no hablamos. Si segu\u00eds buscando, puedo ayudarte. Si no, no te molesto m\u00e1s."};
+const PLANTILLAS_LABELS = {"sin_primer_contacto": "\u26a1 Sin primer contacto (lead nuevo +24hs)", "sin_seguimiento": "\ud83d\udd14 Sin seguimiento (+5 d\u00edas)", "post_visita": "\ud83c\udfe0 Post-visita sin seguimiento", "enfriandose": "\u2744\ufe0f Lead enfri\u00e1ndose (+30 d\u00edas)", "reactivado": "\ud83d\udd25 Lead reactivado", "sin_actividad": "\ud83d\udc80 Sin actividad (+60 d\u00edas)"};
+let plantillasData = {};
+
+async function loadPlantillas() {
+  const { data } = await sb.from('plantillas').select('*').eq('user_id', currentUser.id);
+  plantillasData = {};
+  (data||[]).forEach(p => plantillasData[p.clave] = p.mensaje);
+  // Fill defaults for missing
+  Object.keys(PLANTILLAS_DEFAULT).forEach(k => {
+    if (!plantillasData[k]) plantillasData[k] = PLANTILLAS_DEFAULT[k];
+  });
+  renderPlantillasForm();
+}
+
+function renderPlantillasForm() {
+  const container = document.getElementById('plantillas-form');
+  if (!container) return;
+  container.innerHTML = Object.keys(PLANTILLAS_DEFAULT).map(k => `
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)">${PLANTILLAS_LABELS[k]}</label>
+      <textarea id="pt-${k}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px">${plantillasData[k]||PLANTILLAS_DEFAULT[k]}</textarea>
+    </div>
+  `).join('');
+}
+
+async function savePlantillas() {
+  const keys = Object.keys(PLANTILLAS_DEFAULT);
+  for (const k of keys) {
+    const el = document.getElementById('pt-' + k);
+    if (!el) continue;
+    const msg = el.value.trim();
+    if (!msg) continue;
+    plantillasData[k] = msg;
+    // Upsert
+    const existing = await sb.from('plantillas').select('id').eq('user_id', currentUser.id).eq('clave', k).single();
+    if (existing.data) {
+      await sb.from('plantillas').update({ mensaje: msg }).eq('id', existing.data.id);
+    } else {
+      await sb.from('plantillas').insert([{ user_id: currentUser.id, clave: k, mensaje: msg }]);
+    }
+  }
+  toast('Plantillas guardadas!');
+}
+
+function getMensaje(clave, nombre) {
+  const plantilla = plantillasData[clave] || PLANTILLAS_DEFAULT[clave] || '';
+  return plantilla.replace(/\{nombre\}/g, nombre.split(' ')[0]);
 }
 
 // ── PROPIEDADES ──
