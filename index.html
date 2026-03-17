@@ -1709,37 +1709,57 @@ async function scrapeArgenprop(url) {
     if (!result) throw new Error('Timeout');
     
     // Fill form with scraped data
-    const title = result.title || '';
-    const tipos = { 'casa':'Casa','departamento':'Departamento','depto':'Departamento','ph':'PH','local':'Local','oficina':'Oficina','terreno':'Terreno' };
+    // Detect tipo from URL (more reliable than title)
+    const urlLower = url.toLowerCase();
+    const tipos = { 'casa':'Casa','departamento':'Departamento','ph':'PH','local':'Local','oficina':'Oficina','terreno':'Terreno' };
     let tipo = 'Departamento';
     for (const [k,v] of Object.entries(tipos)) {
-      if (title.toLowerCase().includes(k)) { tipo = v; break; }
+      if (urlLower.includes(k)) { tipo = v; break; }
     }
-    
-    const ambMatch = title.match(/(\d+)\s*amb/i);
-    const amb = ambMatch ? ambMatch[1] : '';
-    
-    const address = result.address || '';
-    const barrioParts = address.split(',');
-    const barrio = barrioParts.length > 1 ? barrioParts[barrioParts.length-2].trim() : barrioParts[0].trim();
-    
-    const precio = result.price ? result.price.toString().replace(/[^0-9.,]/g,'').trim() : '';
-    const moneda = result.price && result.price.toString().includes('USD') ? 'USD' : '$';
-    
+
+    // Ambientes from features array
+    let amb = '';
+    if (result.features && Array.isArray(result.features)) {
+      const ambFeat = result.features.find(f => f.label && f.label.toLowerCase().includes('ambiente'));
+      if (ambFeat) amb = ambFeat.value;
+    }
+
+    // Barrio from location.text (most reliable)
+    let barrio = '';
+    if (result.location && result.location.text) {
+      barrio = result.location.text.split(',')[0].trim();
+    } else if (result.address) {
+      barrio = result.address;
+    }
+
+    // Price — already a clean string like "USD 150.000"
+    const precio = result.price ? result.price.toString().trim() : '';
+
+    // Description — strip HTML tags and clean whitespace
+    let desc = '';
+    if (result.description) {
+      desc = result.description
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\n\s*\n/g, '\n')
+        .trim()
+        .slice(0, 400);
+    }
+
     document.getElementById('prop-tipo').value = tipo;
     document.getElementById('prop-amb').value = amb;
     document.getElementById('prop-barrio').value = barrio;
-    document.getElementById('prop-precio').value = precio ? moneda + ' ' + precio : '';
-    if (result.description) {
-      const desc = result.description.replace(/<[^>]*>/g,'').trim().slice(0,300);
-      document.getElementById('prop-desc').value = desc;
-    }
-    
-    // Store image and features for when we save
+    document.getElementById('prop-precio').value = precio;
+    document.getElementById('prop-desc').value = desc;
+
+    // Store images and features
     window._scrapedImageUrl = (result.images && result.images[0]) ? result.images[0] : null;
     window._scrapedImagenes = (result.images && result.images.length) ? result.images.slice(0,8) : null;
-    window._scrapedFeatures = result.features || null;
-    
+    window._scrapedFeatures = (result.features && Array.isArray(result.features)) 
+      ? result.features.map(f => f.label && f.value ? f.label + ': ' + f.value : f.label || f).filter(Boolean)
+      : result.features || null;
+
     toast('Datos importados de Argenprop!');
     
   } catch(e) {
@@ -1762,10 +1782,14 @@ function parseFromSlug(url) {
   const amb = ambMatch ? ambMatch[1] : '';
   const idMatch = slug.match(/-(\d{6,})$/);
   const slugClean = idMatch ? slug.replace(idMatch[0],'') : slug;
-  const enMatch = slugClean.match(/-en-(.+)$/i);
+  // Find last "-en-" (location follows last "en")
+  const enMatches = [...slugClean.matchAll(/-en-/gi)];
   let barrio = '';
-  if (enMatch) {
-    barrio = enMatch[1].replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  if (enMatches.length) {
+    const lastEn = enMatches[enMatches.length - 1];
+    let barrioRaw = slugClean.slice(lastEn.index + 4);
+    barrioRaw = barrioRaw.replace(/[- ]*(\d+[- ]*ambientes?|ambientes?|cochera|pileta|con|sin|metros|m2|piso).*$/i, '');
+    barrio = barrioRaw.replace(/-/g,' ').trim().replace(/\b\w/g,c=>c.toUpperCase());
   }
   document.getElementById('prop-tipo').value = tipo;
   document.getElementById('prop-amb').value = amb;
