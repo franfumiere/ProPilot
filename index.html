@@ -1617,6 +1617,56 @@ async function generarFichaPDF(propId) {
 }
 
 
+
+// ── PLANTILLAS ──
+const PLANTILLAS_DEFAULT = {"sin_primer_contacto": "Hola {nombre}! Vi tu consulta. ¿Qué tipo de propiedad estás buscando? Cuéntame un poco más para ayudarte mejor.", "sin_seguimiento": "Hola {nombre}, ¿cómo estás? Quería saber si seguís buscando o si puedo ayudarte con algo nuevo que tengo.", "post_visita": "Hola {nombre}, ¿qué te pareció la propiedad que vimos? ¿Tenés alguna duda o querés ver algo más?", "enfriandose": "Hola {nombre}, hace un tiempo que no hablamos. ¿Seguís buscando? Tengo opciones nuevas que podrían interesarte.", "reactivado": "Hola {nombre}, qué bueno saber de vos! ¿En qué te puedo ayudar? Cuéntame qué estás buscando.", "sin_actividad": "Hola {nombre}, sé que hace mucho que no hablamos. Si seguís buscando, puedo ayudarte. Si no, no te molesto más."};
+const PLANTILLAS_LABELS = {"sin_primer_contacto": "⚡ Sin primer contacto (lead nuevo +24hs)", "sin_seguimiento": "🔔 Sin seguimiento (+5 días)", "post_visita": "🏠 Post-visita sin seguimiento", "enfriandose": "❄️ Lead enfriándose (+30 días)", "reactivado": "🔥 Lead reactivado", "sin_actividad": "💀 Sin actividad (+60 días)"};
+let plantillasData = {};
+
+async function loadPlantillas() {
+  const { data } = await sb.from('plantillas').select('*').eq('user_id', currentUser.id);
+  plantillasData = {};
+  (data||[]).forEach(p => plantillasData[p.clave] = p.mensaje);
+  Object.keys(PLANTILLAS_DEFAULT).forEach(k => {
+    if (!plantillasData[k]) plantillasData[k] = PLANTILLAS_DEFAULT[k];
+  });
+  renderPlantillasForm();
+}
+
+function renderPlantillasForm() {
+  const container = document.getElementById('plantillas-form');
+  if (!container) return;
+  container.innerHTML = Object.keys(PLANTILLAS_DEFAULT).map(k => `
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)">${PLANTILLAS_LABELS[k]}</label>
+      <textarea id="pt-${k}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px">${plantillasData[k]||PLANTILLAS_DEFAULT[k]}</textarea>
+    </div>
+  `).join('');
+}
+
+async function savePlantillas() {
+  const keys = Object.keys(PLANTILLAS_DEFAULT);
+  for (const k of keys) {
+    const el = document.getElementById('pt-' + k);
+    if (!el) continue;
+    const msg = el.value.trim();
+    if (!msg) continue;
+    plantillasData[k] = msg;
+    const existing = await sb.from('plantillas').select('id').eq('user_id', currentUser.id).eq('clave', k).single();
+    if (existing.data) {
+      await sb.from('plantillas').update({ mensaje: msg }).eq('id', existing.data.id);
+    } else {
+      await sb.from('plantillas').insert([{ user_id: currentUser.id, clave: k, mensaje: msg }]);
+    }
+  }
+  toast('Plantillas guardadas!');
+}
+
+function getMensaje(clave, nombre) {
+  const plantilla = plantillasData[clave] || PLANTILLAS_DEFAULT[clave] || '';
+  return plantilla.replace(/\{nombre\}/g, nombre.split(' ')[0]);
+}
+
 // ── PROPIEDADES ──
 let propsData = [];
 let currentVincularLeadId = null;
