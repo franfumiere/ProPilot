@@ -470,6 +470,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
       </div>
       <div style="max-width:600px">
         <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:16px">👤 Tu perfil</div>
+          <div class="fl">
+            <div class="fr"><label>Tu nombre</label><input id="cfg-nombre" placeholder="Franco Fumiere"></div>
+            <div class="fr"><label>Empresa / Inmobiliaria</label><input id="cfg-empresa" placeholder="KZN Brokers"></div>
+          </div>
+          <div class="fl">
+            <div class="fr"><label>Teléfono</label><input id="cfg-telefono" placeholder="+54 11 1234-5678"></div>
+            <div class="fr"><label>Email</label><input id="cfg-email" placeholder="tu@email.com"></div>
+          </div>
+          <button class="btn btn-dark" style="margin-bottom:24px" onclick="savePerfil()">Guardar perfil</button>
+          <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px"></div>
           <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:16px">✉️ Plantillas de mensajes</div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Usá <strong>{nombre}</strong> donde quieras que aparezca el nombre del lead.</div>
           <div id="plantillas-form"></div>
@@ -759,6 +770,7 @@ function enterApp() {
   loadLeads();
   loadProps();
   loadPlantillas();
+  loadPerfil();
 }
 
 // ── LEADS ──
@@ -1475,19 +1487,63 @@ function goMobile(id, el) {
 }
 
 
+
+// ── PERFIL BROKER ──
+let perfilBroker = {};
+
+async function loadPerfil() {
+  const { data } = await sb.from('perfil_broker').select('*').eq('user_id', currentUser.id).single();
+  if (data) {
+    perfilBroker = data;
+    document.getElementById('cfg-nombre') && (document.getElementById('cfg-nombre').value = data.nombre||'');
+    document.getElementById('cfg-empresa') && (document.getElementById('cfg-empresa').value = data.empresa||'');
+    document.getElementById('cfg-telefono') && (document.getElementById('cfg-telefono').value = data.telefono||'');
+    document.getElementById('cfg-email') && (document.getElementById('cfg-email').value = data.email||'');
+  }
+}
+
+async function savePerfil() {
+  const nombre   = document.getElementById('cfg-nombre').value.trim();
+  const empresa  = document.getElementById('cfg-empresa').value.trim();
+  const telefono = document.getElementById('cfg-telefono').value.trim();
+  const email    = document.getElementById('cfg-email').value.trim();
+  const existing = await sb.from('perfil_broker').select('id').eq('user_id', currentUser.id).single();
+  if (existing.data) {
+    await sb.from('perfil_broker').update({ nombre, empresa, telefono, email }).eq('id', existing.data.id);
+  } else {
+    await sb.from('perfil_broker').insert([{ user_id: currentUser.id, nombre, empresa, telefono, email }]);
+  }
+  perfilBroker = { nombre, empresa, telefono, email };
+  toast('Perfil guardado!');
+}
+
 // ── PDF FICHA ──
 async function generarFichaPDF(propId) {
   const prop = propsData.find(p => p.id === propId);
   if (!prop) return;
 
-  // Build HTML for PDF
-  const features = prop.features ? 
-    (Array.isArray(prop.features) ? prop.features : Object.entries(prop.features).map(([k,v]) => `${k}: ${v}`)).slice(0,6).join(' · ') 
-    : '';
+  // Parse images
+  let imagenes = [];
+  try { imagenes = prop.imagenes ? JSON.parse(prop.imagenes) : (prop.imagen_url ? [prop.imagen_url] : []); } catch(e) {}
 
-  const imgHtml = prop.imagen_url 
-    ? `<img src="${prop.imagen_url}" style="width:100%;height:220px;object-fit:cover;border-radius:8px;margin-bottom:16px" crossorigin="anonymous">`
-    : `<div style="width:100%;height:220px;background:#f0f0f0;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px">Sin foto disponible</div>`;
+  // Parse features
+  let featsList = [];
+  try {
+    if (prop.features) {
+      const f = typeof prop.features === 'string' ? JSON.parse(prop.features) : prop.features;
+      if (Array.isArray(f)) featsList = f.slice(0,8);
+      else featsList = Object.entries(f).map(([k,v]) => v ? `${k}: ${v}` : k).slice(0,8);
+    }
+  } catch(e) {}
+
+  const broker = perfilBroker;
+  const iniciales = broker.nombre ? broker.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : 'B';
+
+  const galeria = imagenes.length > 0 ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px">
+      ${imagenes.slice(0,4).map((url, i) => `<img src="${url}" style="width:100%;height:${i===0?'220px':'110px'};object-fit:cover;border-radius:${i===0?'8px 8px 0 0':'6px'};${i===0?'grid-column:1/-1;':''}" crossorigin="anonymous">`).join('')}
+    </div>` 
+    : `<div style="width:100%;height:180px;background:#f0f0f0;border-radius:8px;margin-bottom:20px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px">Sin fotos</div>`;
 
   const html = `<!DOCTYPE html>
 <html>
@@ -1495,30 +1551,60 @@ async function generarFichaPDF(propId) {
 <meta charset="UTF-8">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: 'Arial', sans-serif; padding: 32px; color: #1a1a1a; max-width: 600px; }
-  .logo { font-size: 22px; font-weight: 900; margin-bottom: 24px; color: #1a1a1a; }
-  .logo em { background: #c8f135; color: #1a1a1a; padding: 0 4px; font-style: normal; }
-  .tipo-badge { display:inline-block; background:#f0f0f0; border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600; margin-bottom:12px; }
-  .precio { font-size: 28px; font-weight: 900; margin-bottom: 8px; color: #1a1a1a; }
-  .direccion { font-size: 14px; color: #666; margin-bottom: 16px; }
-  .features { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-  .feat { background:#f7f7f7; border-radius:6px; padding:6px 12px; font-size:12px; font-weight:600; }
-  .desc-title { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#999; margin-bottom:8px; }
-  .desc { font-size:13px; line-height:1.6; color:#444; margin-bottom:20px; }
-  .footer { border-top: 1px solid #eee; padding-top: 16px; font-size:11px; color:#999; display:flex; justify-content:space-between; }
-  a { color: #1a1a1a; }
+  body { font-family: Arial, sans-serif; color: #1a1a1a; max-width: 580px; margin: 0 auto; padding: 24px; }
+  .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid #1a1a1a; }
+  .logo { font-size:20px; font-weight:900; }
+  .logo em { background:#c8f135; padding:1px 5px; font-style:normal; }
+  .empresa { font-size:12px; color:#666; text-align:right; }
+  .tipo-badge { display:inline-block; background:#f0f0f0; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; }
+  .precio { font-size:32px; font-weight:900; margin-bottom:6px; }
+  .dir { font-size:13px; color:#666; margin-bottom:16px; }
+  .feats { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+  .feat { background:#f7f7f7; border:1px solid #eee; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; }
+  .section-title { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#999; margin-bottom:8px; }
+  .desc { font-size:12px; line-height:1.7; color:#444; margin-bottom:20px; }
+  .broker-card { background:#f7f7f7; border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+  .broker-avatar { width:44px; height:44px; border-radius:50%; background:#1a1a1a; color:#c8f135; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:16px; flex-shrink:0; }
+  .broker-name { font-weight:800; font-size:14px; }
+  .broker-info { font-size:11px; color:#666; margin-top:2px; }
+  .footer { border-top:1px solid #eee; padding-top:12px; font-size:10px; color:#aaa; display:flex; justify-content:space-between; }
+  a { color:#1a1a1a; text-decoration:none; }
+  @media print { body { padding:0; } }
 </style>
 </head>
 <body>
-  <div class="logo">Pro<em>Pilot</em></div>
-  ${imgHtml}
-  <div class="tipo-badge">${prop.tipo || 'Propiedad'} en ${prop.estado === 'Activa' ? 'Venta/Alquiler' : prop.estado}</div>
-  <div class="precio">${prop.precio || 'Consultar precio'}</div>
-  <div class="direccion">📍 ${prop.barrio || ''}</div>
-  ${prop.ambientes ? `<div class="features"><span class="feat">🛏 ${prop.ambientes} ambientes</span>${features ? features.split(' · ').map(f => `<span class="feat">${f}</span>`).join('') : ''}</div>` : ''}
-  ${prop.descripcion ? `<div class="desc-title">Descripción</div><div class="desc">${prop.descripcion}</div>` : ''}
+  <div class="header">
+    <div class="logo">Pro<em>Pilot</em></div>
+    ${broker.empresa ? `<div class="empresa"><strong>${broker.empresa}</strong>${broker.email ? '<br>'+broker.email : ''}</div>` : ''}
+  </div>
+
+  ${galeria}
+
+  <div class="tipo-badge">${prop.tipo||'Propiedad'}</div>
+  <div class="precio">${prop.precio||'Consultar'}</div>
+  <div class="dir">📍 ${prop.barrio||''}</div>
+
+  ${prop.ambientes || featsList.length ? `
+  <div class="feats">
+    ${prop.ambientes ? `<span class="feat">🛏 ${prop.ambientes} ambientes</span>` : ''}
+    ${featsList.map(f => `<span class="feat">${f}</span>`).join('')}
+  </div>` : ''}
+
+  ${prop.descripcion ? `
+  <div class="section-title">Descripción</div>
+  <div class="desc">${prop.descripcion}</div>` : ''}
+
+  ${broker.nombre ? `
+  <div class="broker-card">
+    <div class="broker-avatar">${iniciales}</div>
+    <div>
+      <div class="broker-name">${broker.nombre}</div>
+      <div class="broker-info">${[broker.empresa, broker.telefono].filter(Boolean).join(' · ')}</div>
+    </div>
+  </div>` : ''}
+
   <div class="footer">
-    <span>${prop.url ? `<a href="${prop.url}">${prop.url.slice(0,50)}...</a>` : ''}</span>
+    <span>${prop.url ? `<a href="${prop.url}">${prop.url.slice(0,55)}...</a>` : ''}</span>
     <span>Generado con ProPilot</span>
   </div>
 </body>
@@ -1527,60 +1613,9 @@ async function generarFichaPDF(propId) {
   const win = window.open('', '_blank');
   win.document.write(html);
   win.document.close();
-  setTimeout(() => win.print(), 800);
+  setTimeout(() => win.print(), 900);
 }
 
-
-// ── PLANTILLAS ──
-const PLANTILLAS_DEFAULT = {"sin_primer_contacto": "Hola {nombre}! Vi tu consulta. \u00bfQu\u00e9 tipo de propiedad est\u00e1s buscando? Cu\u00e9ntame un poco m\u00e1s para ayudarte mejor.", "sin_seguimiento": "Hola {nombre}, \u00bfc\u00f3mo est\u00e1s? Quer\u00eda saber si segu\u00eds buscando o si puedo ayudarte con algo nuevo que tengo.", "post_visita": "Hola {nombre}, \u00bfqu\u00e9 te pareci\u00f3 la propiedad que vimos? \u00bfTen\u00e9s alguna duda o quer\u00e9s ver algo m\u00e1s?", "enfriandose": "Hola {nombre}, hace un tiempo que no hablamos. \u00bfSegu\u00eds buscando? Tengo opciones nuevas que podr\u00edan interesarte.", "reactivado": "Hola {nombre}, qu\u00e9 bueno saber de vos! \u00bfEn qu\u00e9 te puedo ayudar? Cu\u00e9ntame qu\u00e9 est\u00e1s buscando.", "sin_actividad": "Hola {nombre}, s\u00e9 que hace mucho que no hablamos. Si segu\u00eds buscando, puedo ayudarte. Si no, no te molesto m\u00e1s."};
-const PLANTILLAS_LABELS = {"sin_primer_contacto": "\u26a1 Sin primer contacto (lead nuevo +24hs)", "sin_seguimiento": "\ud83d\udd14 Sin seguimiento (+5 d\u00edas)", "post_visita": "\ud83c\udfe0 Post-visita sin seguimiento", "enfriandose": "\u2744\ufe0f Lead enfri\u00e1ndose (+30 d\u00edas)", "reactivado": "\ud83d\udd25 Lead reactivado", "sin_actividad": "\ud83d\udc80 Sin actividad (+60 d\u00edas)"};
-let plantillasData = {};
-
-async function loadPlantillas() {
-  const { data } = await sb.from('plantillas').select('*').eq('user_id', currentUser.id);
-  plantillasData = {};
-  (data||[]).forEach(p => plantillasData[p.clave] = p.mensaje);
-  // Fill defaults for missing
-  Object.keys(PLANTILLAS_DEFAULT).forEach(k => {
-    if (!plantillasData[k]) plantillasData[k] = PLANTILLAS_DEFAULT[k];
-  });
-  renderPlantillasForm();
-}
-
-function renderPlantillasForm() {
-  const container = document.getElementById('plantillas-form');
-  if (!container) return;
-  container.innerHTML = Object.keys(PLANTILLAS_DEFAULT).map(k => `
-    <div style="margin-bottom:18px">
-      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)">${PLANTILLAS_LABELS[k]}</label>
-      <textarea id="pt-${k}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px">${plantillasData[k]||PLANTILLAS_DEFAULT[k]}</textarea>
-    </div>
-  `).join('');
-}
-
-async function savePlantillas() {
-  const keys = Object.keys(PLANTILLAS_DEFAULT);
-  for (const k of keys) {
-    const el = document.getElementById('pt-' + k);
-    if (!el) continue;
-    const msg = el.value.trim();
-    if (!msg) continue;
-    plantillasData[k] = msg;
-    // Upsert
-    const existing = await sb.from('plantillas').select('id').eq('user_id', currentUser.id).eq('clave', k).single();
-    if (existing.data) {
-      await sb.from('plantillas').update({ mensaje: msg }).eq('id', existing.data.id);
-    } else {
-      await sb.from('plantillas').insert([{ user_id: currentUser.id, clave: k, mensaje: msg }]);
-    }
-  }
-  toast('Plantillas guardadas!');
-}
-
-function getMensaje(clave, nombre) {
-  const plantilla = plantillasData[clave] || PLANTILLAS_DEFAULT[clave] || '';
-  return plantilla.replace(/\{nombre\}/g, nombre.split(' ')[0]);
-}
 
 // ── PROPIEDADES ──
 let propsData = [];
@@ -1702,6 +1737,7 @@ async function scrapeArgenprop(url) {
     
     // Store image and features for when we save
     window._scrapedImageUrl = (result.images && result.images[0]) ? result.images[0] : null;
+    window._scrapedImagenes = (result.images && result.images.length) ? result.images.slice(0,8) : null;
     window._scrapedFeatures = result.features || null;
     
     toast('Datos importados de Argenprop!');
@@ -1751,9 +1787,11 @@ async function saveProp() {
     url: url || null, tipo, ambientes: amb, barrio, precio,
     descripcion: desc, estado: 'Activa', user_id: currentUser.id,
     imagen_url: window._scrapedImageUrl || null,
+    imagenes: window._scrapedImagenes ? JSON.stringify(window._scrapedImagenes) : null,
     features: window._scrapedFeatures || null
   }]);
   window._scrapedImageUrl = null;
+  window._scrapedImagenes = null;
   window._scrapedFeatures = null;
   if (error) { toast('Error al guardar'); console.error(error); return; }
   
