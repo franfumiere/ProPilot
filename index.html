@@ -479,6 +479,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
             <div class="fr"><label>Teléfono</label><input id="cfg-telefono" placeholder="+54 11 1234-5678"></div>
             <div class="fr"><label>Email</label><input id="cfg-email" placeholder="tu@email.com"></div>
           </div>
+          <div class="fl">
+            <div class="fr">
+              <label>WhatsApp <span style="font-size:11px;color:var(--muted)">(para el bot y resumen diario)</span></label>
+              <input id="cfg-whatsapp" placeholder="+5491112345678">
+            </div>
+            <div class="fr">
+              <label>Hora del resumen diario</label>
+              <select id="cfg-hora-resumen">
+                <option value="">Sin resumen automático</option>
+                <option value="7">7:00 AM</option>
+                <option value="8">8:00 AM</option>
+                <option value="9">9:00 AM</option>
+                <option value="10">10:00 AM</option>
+                <option value="12">12:00 PM</option>
+                <option value="18">6:00 PM</option>
+                <option value="20">8:00 PM</option>
+              </select>
+            </div>
+          </div>
           <button class="btn btn-dark" style="margin-bottom:24px" onclick="savePerfil()">Guardar perfil</button>
           <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:16px"></div>
           <div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:16px">✉️ Plantillas de mensajes</div>
@@ -1549,21 +1568,37 @@ async function loadPerfil() {
     document.getElementById('cfg-empresa') && (document.getElementById('cfg-empresa').value = data.empresa||'');
     document.getElementById('cfg-telefono') && (document.getElementById('cfg-telefono').value = data.telefono||'');
     document.getElementById('cfg-email') && (document.getElementById('cfg-email').value = data.email||'');
+    document.getElementById('cfg-whatsapp') && (document.getElementById('cfg-whatsapp').value = data.whatsapp||'');
+    document.getElementById('cfg-hora-resumen') && (document.getElementById('cfg-hora-resumen').value = data.hora_resumen||'');
   }
 }
 
 async function savePerfil() {
-  const nombre   = document.getElementById('cfg-nombre').value.trim();
-  const empresa  = document.getElementById('cfg-empresa').value.trim();
-  const telefono = document.getElementById('cfg-telefono').value.trim();
-  const email    = document.getElementById('cfg-email').value.trim();
+  const nombre        = document.getElementById('cfg-nombre').value.trim();
+  const empresa       = document.getElementById('cfg-empresa').value.trim();
+  const telefono      = document.getElementById('cfg-telefono').value.trim();
+  const email         = document.getElementById('cfg-email').value.trim();
+  const whatsapp      = document.getElementById('cfg-whatsapp').value.trim();
+  const hora_resumen  = document.getElementById('cfg-hora-resumen').value || null;
+
   const existing = await sb.from('perfil_broker').select('id').eq('user_id', currentUser.id).single();
   if (existing.data) {
-    await sb.from('perfil_broker').update({ nombre, empresa, telefono, email }).eq('id', existing.data.id);
+    await sb.from('perfil_broker').update({ nombre, empresa, telefono, email, whatsapp, hora_resumen }).eq('id', existing.data.id);
   } else {
-    await sb.from('perfil_broker').insert([{ user_id: currentUser.id, nombre, empresa, telefono, email }]);
+    await sb.from('perfil_broker').insert([{ user_id: currentUser.id, nombre, empresa, telefono, email, whatsapp, hora_resumen }]);
   }
-  perfilBroker = { nombre, empresa, telefono, email };
+  perfilBroker = { nombre, empresa, telefono, email, whatsapp, hora_resumen };
+  
+  // Also register whatsapp in broker_phones if provided
+  if (whatsapp) {
+    const tel = whatsapp.startsWith('+') ? whatsapp : '+' + whatsapp;
+    const existing2 = await sb.from('broker_phones').select('id').eq('user_id', currentUser.id).single();
+    if (existing2.data) {
+      await sb.from('broker_phones').update({ telefono: tel }).eq('id', existing2.data.id);
+    } else {
+      await sb.from('broker_phones').insert([{ user_id: currentUser.id, telefono: tel }]);
+    }
+  }
   toast('Perfil guardado!');
 }
 
