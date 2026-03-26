@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
-  --bg:#f5f4f0; --surface:#fff; --border:#e5e3db; --text:#111; --muted:#999;
+  --bg:#f5f4f0; --surface:#fff; --card:#fff; --border:#e5e3db; --text:#111; --muted:#999;
   --red:#d63030; --red-bg:#fff0f0; --red-border:#fbc8c8;
   --yellow:#c47f00; --yellow-bg:#fffbf0; --yellow-border:#f5dfa0;
   --green:#1e7e4a; --green-bg:#f0faf4; --green-border:#b2e4c8;
@@ -687,20 +687,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 <div class="toast" id="toastEl"></div>
 
 <script>
-// ── SUPABASE ──
+// -- SUPABASE --
 const SUPA_URL = 'https://oiblovowxzbfcjapokcw.supabase.co';
 const SUPA_KEY = 'sb_publishable_gNNUvK6kQQqisFAwYpFEHA_DfKVvB1e';
 const { createClient } = supabase;
 const sb = createClient(SUPA_URL, SUPA_KEY);
 
-// ── STATE ──
+// -- STATE --
 let currentUser = null;
 let leadsData = [];
 let reminders = [];
 let currentStatusLeadId = null;
 let currentPostponeRecId = null;
 
-// ── INIT ──
+// -- INIT --
 async function init() {
   setDate();
   setPostponeDates();
@@ -728,7 +728,7 @@ function setPostponeDates() {
   });
 }
 
-// ── AUTH ──
+// -- AUTH --
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-password').value;
@@ -792,7 +792,7 @@ function enterApp() {
   loadPerfil();
 }
 
-// ── LEADS ──
+// -- LEADS --
 async function loadLeads() {
   const [leadsRes] = await Promise.all([
     sb.from('leads').select('*').order('created_at', { ascending: false }),
@@ -813,7 +813,7 @@ function renderAll() {
   updateStats();
 }
 
-// ── REMINDERS ENGINE ──
+// -- REMINDERS ENGINE --
 function computeReminders() {
   reminders = [];
   const now = new Date();
@@ -881,7 +881,7 @@ function computeReminders() {
   document.getElementById('stat-recs').textContent = total;
 }
 
-// ── RENDER REMINDERS ──
+// -- RENDER REMINDERS --
 function recCardHTML(r, prefix) {
   const tel = r.tel ? r.tel.replace(/\D/g,'') : '';
   const waLink = tel ? 'https://wa.me/' + tel : '#';
@@ -942,7 +942,7 @@ function resolveRec(id) {
   toast('Recordatorio resuelto!');
 }
 
-// ── SUGGESTIONS ──
+// -- SUGGESTIONS --
 function runMotor() {
   const now = new Date();
   const alerts = [];
@@ -1054,7 +1054,7 @@ function renderDashSuggestions() {
     return;
   }
   if (!alerts.length) {
-    container.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:var(--muted);text-align:center">✅ Todo al día — no hay acciones pendientes</div>';
+    container.innerHTML = '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;color:var(--muted);text-align:center">✅ Todo al día -- no hay acciones pendientes</div>';
     return;
   }
 
@@ -1065,7 +1065,7 @@ function renderDashSuggestions() {
     'info': '#6b7280'
   };
 
-  // Daily picks — complementary to alerts
+  // Daily picks -- complementary to alerts
   const sorted = [...leadsData].filter(l => l.estado !== 'Frio' && l.estado !== 'Cerrado')
     .sort((a,b) => diasDesde(b.ultimo_contacto) - diasDesde(a.ultimo_contacto));
   const todayPick = sorted[0];
@@ -1095,7 +1095,7 @@ function renderDashSuggestions() {
       <div class="suggest-body">
         <div class="suggest-title">Tomá un café</div>
         <div class="suggest-name">${weekPick.nombre}</div>
-        <div class="suggest-why">Hace ${diasDesde(weekPick.ultimo_contacto)} días — hora de reconectar</div>
+        <div class="suggest-why">Hace ${diasDesde(weekPick.ultimo_contacto)} días -- hora de reconectar</div>
       </div>
       <div class="suggest-actions">
         <button class="btn btn-xs btn-dark" data-lid="${weekPick.id}" data-name="${weekPick.nombre}" data-tel="${weekPick.telefono||''}" data-msg="${encodeURIComponent(getMensaje('enfriandose', weekPick.nombre))}" onclick="openMensajeModalFromBtn(this)">Escribir</button>
@@ -1106,7 +1106,7 @@ function renderDashSuggestions() {
 
   container.innerHTML = `
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:10px">
-      🤖 Copiloto — ${alerts.length} acción${alerts.length>1?'es':''} sugerida${alerts.length>1?'s':''}
+      🤖 Copiloto -- ${alerts.length} acción${alerts.length>1?'es':''} sugerida${alerts.length>1?'s':''}
     </div>
     ${alerts.map(a => `
     <div class="suggest-card" style="border-left:3px solid ${tagColors[a.tag]||'#ccc'}">
@@ -1155,7 +1155,7 @@ function enviarMensajeCopiloto() {
 }
 
 
-// ── STATS ──
+// -- STATS --
 function updateStats() {
   const active = leadsData.filter(l => l.estado !== 'Frio').length;
   const cold = leadsData.filter(l => diasDesde(l.ultimo_contacto) >= 7 && l.estado !== 'Frio').length;
@@ -1166,7 +1166,7 @@ function updateStats() {
   if (mnLeads) { mnLeads.textContent = active; mnLeads.style.display = active > 0 ? '' : 'none'; }
 }
 
-// ── LEADS RENDER ──
+// -- LEADS RENDER --
 function renderDashLeads() {
   const tbody = document.getElementById('dash-leads-tbody');
   if (!tbody) return;
@@ -1232,7 +1232,7 @@ function filterLeads(q) {
   });
 }
 
-// ── SAVE LEAD ──
+// -- SAVE LEAD --
 async function saveLead() {
   const nombre  = document.getElementById('nl-nombre').value.trim();
   const tel     = document.getElementById('nl-tel').value.trim();
@@ -1264,7 +1264,7 @@ async function saveLead() {
   loadLeads();
 }
 
-// ── UPDATE ESTADO ──
+// -- UPDATE ESTADO --
 async function updateEstado(e, leadId, nuevoEstado) {
   e.stopPropagation();
   document.querySelectorAll('.status-sel.open').forEach(s => s.classList.remove('open'));
@@ -1273,7 +1273,7 @@ async function updateEstado(e, leadId, nuevoEstado) {
   loadLeads();
 }
 
-// ── PANEL ──
+// -- PANEL --
 let currentPanelLeadId = null;
 
 function openPanelLead(id) {
@@ -1353,7 +1353,7 @@ async function loadHistorial(leadId) {
   `).join('');
 }
 
-// ── CONTACTO MODAL ──
+// -- CONTACTO MODAL --
 let currentContactoLeadId = null;
 let currentTipo = 'llamada';
 
@@ -1410,7 +1410,7 @@ function formatBday(bday) {
   return d + ' de ' + months[parseInt(m)-1];
 }
 
-// ── STATUS MODAL ──
+// -- STATUS MODAL --
 function openStatusRec(leadId, name) {
   currentStatusLeadId = leadId;
   document.getElementById('m-status-who').textContent = name;
@@ -1425,7 +1425,7 @@ async function applyStatus(estado) {
   loadLeads();
 }
 
-// ── POSTPONE ──
+// -- POSTPONE --
 function openPostpone(recId) { currentPostponeRecId = recId; openM('m-postpone'); }
 function doPostpone(days) {
   closeM('m-postpone');
@@ -1438,7 +1438,7 @@ function doPostpone(days) {
   toast('Pospuesto ' + days + ' dias');
 }
 
-// ── HELPERS ──
+// -- HELPERS --
 function estadoClass(e) {
   return { 'Nuevo':'c-nuevo','Contactado':'c-cont','Visita':'c-visita','Oferta':'c-oferta','Frio':'c-frio' }[e] || 'c-nuevo';
 }
@@ -1455,7 +1455,7 @@ function diasDesde(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr)) / 86400000);
 }
 
-// ── NAV ──
+// -- NAV --
 function go(id, el) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
   document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('on'));
@@ -1465,7 +1465,7 @@ function go(id, el) {
   closeSidebar();
 }
 
-// ── SIDEBAR MOBILE ──
+// -- SIDEBAR MOBILE --
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('mobile-open');
   document.getElementById('sb-overlay').classList.toggle('on');
@@ -1475,7 +1475,7 @@ function closeSidebar() {
   document.getElementById('sb-overlay').classList.remove('on');
 }
 
-// ── MODAL ──
+// -- MODAL --
 function openM(id) { document.getElementById(id).classList.add('on'); }
 function closeM(id) { document.getElementById(id).classList.remove('on'); }
 document.addEventListener('click', e => {
@@ -1483,10 +1483,10 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.status-sel')) document.querySelectorAll('.status-sel.open').forEach(s => s.classList.remove('open'));
 });
 
-// ── DROPDOWN ──
+// -- DROPDOWN --
 function toggleDD(el) { el.classList.toggle('open'); }
 
-// ── TOAST ──
+// -- TOAST --
 function toast(msg) {
   const el = document.getElementById('toastEl');
   el.textContent = msg; el.classList.add('on');
@@ -1494,7 +1494,7 @@ function toast(msg) {
 }
 
 
-// ── RELACION SCORING ──
+// -- RELACION SCORING --
 let contactosCounts = {}; // leadId -> {total, tipos, lastDays}
 
 async function loadContactosCounts() {
@@ -1548,7 +1548,7 @@ function relBadgeHTML(leadId) {
   return `<span class="rel-badge ${cls}">${label}</span>`;
 }
 
-// ── MOBILE NAV ──
+// -- MOBILE NAV --
 function goMobile(id, el) {
   go(id, document.querySelectorAll('.sb-item')[['dash','leads','recs'].indexOf(id)]);
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('on'));
@@ -1557,7 +1557,7 @@ function goMobile(id, el) {
 
 
 
-// ── PERFIL BROKER ──
+// -- PERFIL BROKER --
 let perfilBroker = {};
 
 async function loadPerfil() {
@@ -1602,7 +1602,7 @@ async function savePerfil() {
   toast('Perfil guardado!');
 }
 
-// ── PDF FICHA ──
+// -- PDF FICHA --
 async function generarFichaPDF(propId) {
   const prop = propsData.find(p => p.id === propId);
   if (!prop) return;
@@ -1703,7 +1703,7 @@ async function generarFichaPDF(propId) {
 
 
 
-// ── PLANTILLAS ──
+// -- PLANTILLAS --
 const PLANTILLAS_DEFAULT = {"sin_primer_contacto": "Hola {nombre}! Vi tu consulta. ¿Qué tipo de propiedad estás buscando? Cuéntame un poco más para ayudarte mejor.", "sin_seguimiento": "Hola {nombre}, ¿cómo estás? Quería saber si seguís buscando o si puedo ayudarte con algo nuevo que tengo.", "post_visita": "Hola {nombre}, ¿qué te pareció la propiedad que vimos? ¿Tenés alguna duda o querés ver algo más?", "enfriandose": "Hola {nombre}, hace un tiempo que no hablamos. ¿Seguís buscando? Tengo opciones nuevas que podrían interesarte.", "reactivado": "Hola {nombre}, qué bueno saber de vos! ¿En qué te puedo ayudar? Cuéntame qué estás buscando.", "sin_actividad": "Hola {nombre}, sé que hace mucho que no hablamos. Si seguís buscando, puedo ayudarte. Si no, no te molesto más."};
 const PLANTILLAS_LABELS = {"sin_primer_contacto": "⚡ Sin primer contacto (lead nuevo +24hs)", "sin_seguimiento": "🔔 Sin seguimiento (+5 días)", "post_visita": "🏠 Post-visita sin seguimiento", "enfriandose": "❄️ Lead enfriándose (+30 días)", "reactivado": "🔥 Lead reactivado", "sin_actividad": "💀 Sin actividad (+60 días)"};
 let plantillasData = {};
@@ -1752,7 +1752,7 @@ function getMensaje(clave, nombre) {
   return plantilla.replace(/\{nombre\}/g, nombre.split(' ')[0]);
 }
 
-// ── PROPIEDADES ──
+// -- PROPIEDADES --
 let propsData = [];
 let currentVincularLeadId = null;
 
@@ -1777,7 +1777,7 @@ function renderProps() {
           <div style="font-size:13px;color:var(--muted);margin-top:2px">${p.barrio||''}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-weight:800;font-size:14px">${p.precio||'—'}</div>
+          <div style="font-weight:800;font-size:14px">${p.precio||'--'}</div>
           <span class="chip ${p.estado==='Activa'?'c-cont':'c-frio'}" style="margin-top:4px;display:inline-block">${p.estado||'Activa'}</span>
         </div>
       </div>
@@ -1867,10 +1867,10 @@ async function scrapeArgenprop(url) {
       barrio = result.address;
     }
 
-    // Price — already a clean string like "USD 150.000"
+    // Price -- already a clean string like "USD 150.000"
     const precio = result.price ? result.price.toString().trim() : '';
 
-    // Description — strip HTML tags and clean whitespace
+    // Description -- strip HTML tags and clean whitespace
     let desc = '';
     if (result.description) {
       desc = result.description
@@ -2122,7 +2122,7 @@ async function confirmarEliminarLead(id, nombre) {
   loadLeads();
 }
 
-// ── START ──
+// -- START --
 init();
 </script>
 </body>
