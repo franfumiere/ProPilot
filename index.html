@@ -485,17 +485,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
               <input id="cfg-whatsapp" placeholder="+5491112345678">
             </div>
             <div class="fr">
-              <label>Hora del resumen diario</label>
-              <select id="cfg-hora-resumen">
-                <option value="">Sin resumen automático</option>
-                <option value="7">7:00 AM</option>
-                <option value="8">8:00 AM</option>
-                <option value="9">9:00 AM</option>
-                <option value="10">10:00 AM</option>
-                <option value="12">12:00 PM</option>
-                <option value="18">6:00 PM</option>
-                <option value="20">8:00 PM</option>
-              </select>
+              <label>Hora del resumen diario <span style="font-size:11px;color:var(--muted)">(ej: 8 para las 8AM, 18 para las 6PM)</span></label>
+              <input id="cfg-hora-resumen" type="number" min="0" max="23" placeholder="Sin resumen (dejá vacío)">
             </div>
           </div>
           <button class="btn btn-dark" style="margin-bottom:24px" onclick="savePerfil()">Guardar perfil</button>
