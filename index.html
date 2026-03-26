@@ -675,6 +675,40 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     </div>
   </div>
 </div>
+
+<!-- MODAL EDITAR LEAD -->
+<div class="modal-ov" id="m-editar-lead">
+  <div class="modal">
+    <h2>Editar lead</h2>
+    <div class="fl">
+      <div class="fr"><label>Nombre *</label><input id="el-nombre" placeholder="Nombre completo"></div>
+      <div class="fr"><label>Teléfono</label><input id="el-telefono" placeholder="+54 11 1234-5678"></div>
+    </div>
+    <div class="fl">
+      <div class="fr"><label>Fuente</label>
+        <select id="el-fuente">
+          <option>ZonaProp</option><option>MercadoLibre</option><option>Argenprop</option>
+          <option>Instagram</option><option>Referido</option><option>WhatsApp</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="fr"><label>Estado</label>
+        <select id="el-estado">
+          <option>Nuevo</option><option>Contactado</option><option>Interesado</option>
+          <option>Visita</option><option>Propuesta</option><option>Cerrado</option><option>Frio</option>
+        </select>
+      </div>
+    </div>
+    <div class="fr"><label>Qué busca</label><input id="el-busca" placeholder="Ej: Depto 3 amb en Palermo"></div>
+    <div class="fl">
+      <div class="fr"><label>Cumpleaños</label><input id="el-birthday" type="date"></div>
+      <div class="fr"><label>Cuadro favorito / Datos personales</label><input id="el-notas" placeholder="Ej: Hincha de River, tiene 2 hijos"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('m-editar-lead')">Cancelar</button>
+      <button class="btn btn-dark" onclick="saveEditarLead()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toastEl"></div>
 
 <script>
@@ -1282,6 +1316,7 @@ function openPanelLead(id) {
     <a class="btn btn-ghost btn-sm" href="${call}" onclick="registrarContactoRapido('${l.id}','llamada')">📞 Llamar</a>
     <button class="btn btn-ghost btn-sm" onclick="openStatusRec('${l.id}','${l.nombre}')">Mover estado</button>
     <button class="btn btn-ghost btn-sm" onclick="openContactoModal('${l.id}','${l.nombre}')">+ Registrar</button>
+    <button class="btn btn-ghost btn-sm" onclick="openEditarLead('${l.id}')">Editar</button>
     <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="confirmarEliminarLead('${l.id}','${l.nombre}')">Eliminar</button>
   `;
   const rows = [
