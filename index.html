@@ -1633,150 +1633,134 @@ async function generarFichaPDF(propId) {
   const prop = propsData.find(p => p.id === propId);
   if (!prop) return;
 
-  // Parse images
   let imagenes = [];
   try { imagenes = prop.imagenes ? JSON.parse(prop.imagenes) : (prop.imagen_url ? [prop.imagen_url] : []); } catch(e) {}
 
-  // Parse features
   let featsList = [];
   try {
     if (prop.features) {
       const f = typeof prop.features === 'string' ? JSON.parse(prop.features) : prop.features;
-      if (Array.isArray(f)) featsList = f.slice(0,8);
+      if (Array.isArray(f)) featsList = f.map(x => x.label && x.value ? `${x.label}: ${x.value}` : x.label || x).filter(Boolean).slice(0,8);
       else featsList = Object.entries(f).map(([k,v]) => v ? `${k}: ${v}` : k).slice(0,8);
     }
   } catch(e) {}
 
-  const broker = perfilBroker;
+  const broker = perfilBroker || {};
   const iniciales = broker.nombre ? broker.nombre.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : 'B';
 
-  const galeria = imagenes.length > 0 ? `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px">
-      ${imagenes.slice(0,4).map((url, i) => `<img src="${url}" style="width:100%;height:${i===0?'220px':'110px'};object-fit:cover;border-radius:${i===0?'8px 8px 0 0':'6px'};${i===0?'grid-column:1/-1;':''}" crossorigin="anonymous">`).join('')}
-    </div>` 
-    : `<div style="width:100%;height:180px;background:#f0f0f0;border-radius:8px;margin-bottom:20px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:13px">Sin fotos</div>`;
+  const mainImg = imagenes[0] || '';
+  const extraImgs = imagenes.slice(1, 4);
 
   const html = `<!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ficha — ${prop.tipo||'Propiedad'} en ${prop.barrio||''}</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; color: #1a1a1a; max-width: 580px; margin: 0 auto; padding: 24px; }
-  .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid #1a1a1a; }
-  .logo { font-size:20px; font-weight:900; }
-  .logo em { background:#c8f135; padding:1px 5px; font-style:normal; }
-  .empresa { font-size:12px; color:#666; text-align:right; }
-  .tipo-badge { display:inline-block; background:#f0f0f0; border-radius:20px; padding:4px 12px; font-size:11px; font-weight:700; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; }
-  .precio { font-size:32px; font-weight:900; margin-bottom:6px; }
-  .dir { font-size:13px; color:#666; margin-bottom:16px; }
-  .feats { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
-  .feat { background:#f7f7f7; border:1px solid #eee; border-radius:6px; padding:5px 10px; font-size:11px; font-weight:600; }
-  .section-title { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color:#999; margin-bottom:8px; }
-  .desc { font-size:12px; line-height:1.7; color:#444; margin-bottom:20px; }
-  .broker-card { background:#f7f7f7; border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:14px; margin-bottom:20px; }
-  .broker-avatar { width:44px; height:44px; border-radius:50%; background:#1a1a1a; color:#c8f135; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:16px; flex-shrink:0; }
-  .broker-name { font-weight:800; font-size:14px; }
-  .broker-info { font-size:11px; color:#666; margin-top:2px; }
-  .footer { border-top:1px solid #eee; padding-top:12px; font-size:10px; color:#aaa; display:flex; justify-content:space-between; }
-  a { color:#1a1a1a; text-decoration:none; }
-  @media print { body { padding:0; } }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',Arial,sans-serif;color:#111;background:#fff;max-width:680px;margin:0 auto;padding:32px 28px;}
+  
+  /* HEADER */
+  .header{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:2px solid #111;margin-bottom:24px;}
+  .logo{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
+  .logo em{background:#c8f135;padding:1px 6px;font-style:normal;border-radius:3px;}
+  .empresa-info{text-align:right;font-size:11px;color:#666;line-height:1.5;}
+  .empresa-info strong{display:block;font-size:13px;color:#111;}
+
+  /* GALERIA */
+  .galeria{margin-bottom:20px;}
+  .main-img{width:100%;height:280px;object-fit:cover;border-radius:10px;display:block;}
+  .main-placeholder{width:100%;height:280px;background:#f0f0f0;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:13px;}
+  .extra-imgs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px;}
+  .extra-img{width:100%;height:90px;object-fit:cover;border-radius:6px;display:block;}
+
+  /* CONTENIDO */
+  .badge{display:inline-block;background:#f0f0f0;border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;}
+  .precio{font-size:36px;font-weight:900;letter-spacing:-1px;margin-bottom:6px;line-height:1;}
+  .ubicacion{font-size:14px;color:#555;margin-bottom:18px;display:flex;align-items:center;gap:5px;}
+
+  /* FEATURES */
+  .features{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px;}
+  .feat{background:#f7f7f7;border:1px solid #e8e8e8;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;color:#333;}
+
+  /* DESCRIPCION */
+  .section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#999;margin-bottom:8px;}
+  .descripcion{font-size:13px;line-height:1.75;color:#444;margin-bottom:24px;}
+
+  /* BROKER */
+  .broker-card{background:#f8f8f8;border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;border:1px solid #eee;}
+  .broker-avatar{width:46px;height:46px;border-radius:50%;background:#111;color:#c8f135;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;}
+  .broker-name{font-weight:700;font-size:14px;margin-bottom:2px;}
+  .broker-sub{font-size:12px;color:#666;}
+
+  /* FOOTER */
+  .footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eee;padding-top:14px;font-size:10px;color:#aaa;}
+  .footer a{color:#666;text-decoration:none;font-size:11px;}
+
+  /* PRINT */
+  @media print {
+    body{padding:20px;max-width:100%;}
+    .main-img{height:240px;}
+    .precio{font-size:30px;}
+    @page{margin:15mm;size:A4;}
+    .broker-card{break-inside:avoid;}
+    .descripcion{break-inside:avoid;}
+  }
 </style>
 </head>
 <body>
+
   <div class="header">
     <div class="logo">Pro<em>Pilot</em></div>
-    ${broker.empresa ? `<div class="empresa"><strong>${broker.empresa}</strong>${broker.email ? '<br>'+broker.email : ''}</div>` : ''}
+    ${broker.empresa || broker.nombre ? `<div class="empresa-info"><strong>${broker.empresa||''}</strong>${broker.nombre||''}${broker.telefono ? '<br>'+broker.telefono : ''}</div>` : ''}
   </div>
 
-  ${galeria}
+  <div class="galeria">
+    ${mainImg 
+      ? `<img class="main-img" src="${mainImg}" crossorigin="anonymous" onerror="this.style.display='none'">`
+      : `<div class="main-placeholder">Sin fotos disponibles</div>`}
+    ${extraImgs.length ? `<div class="extra-imgs">${extraImgs.map(url => `<img class="extra-img" src="${url}" crossorigin="anonymous" onerror="this.style.display='none'">`).join('')}</div>` : ''}
+  </div>
 
-  <div class="tipo-badge">${prop.tipo||'Propiedad'}</div>
-  <div class="precio">${prop.precio||'Consultar'}</div>
-  <div class="dir">📍 ${prop.barrio||''}</div>
+  <div class="badge">${prop.tipo||'Propiedad'}</div>
+  <div class="precio">${prop.precio||'Consultar precio'}</div>
+  <div class="ubicacion">📍 ${prop.barrio||''}</div>
 
   ${prop.ambientes || featsList.length ? `
-  <div class="feats">
+  <div class="features">
     ${prop.ambientes ? `<span class="feat">🛏 ${prop.ambientes} ambientes</span>` : ''}
     ${featsList.map(f => `<span class="feat">${f}</span>`).join('')}
   </div>` : ''}
 
   ${prop.descripcion ? `
-  <div class="section-title">Descripción</div>
-  <div class="desc">${prop.descripcion}</div>` : ''}
+  <div class="section-label">Descripción</div>
+  <div class="descripcion">${prop.descripcion.replace(/\n/g,'<br>')}</div>` : ''}
 
   ${broker.nombre ? `
   <div class="broker-card">
     <div class="broker-avatar">${iniciales}</div>
     <div>
       <div class="broker-name">${broker.nombre}</div>
-      <div class="broker-info">${[broker.empresa, broker.telefono].filter(Boolean).join(' · ')}</div>
+      <div class="broker-sub">${[broker.empresa, broker.telefono, broker.email].filter(Boolean).join(' · ')}</div>
     </div>
   </div>` : ''}
 
   <div class="footer">
-    <span>${prop.url ? `<a href="${prop.url}">${prop.url.slice(0,55)}...</a>` : ''}</span>
+    ${prop.url ? `<a href="${prop.url}" target="_blank">${prop.url.slice(0,60)}${prop.url.length>60?'...':''}</a>` : '<span></span>'}
     <span>Generado con ProPilot</span>
   </div>
+
 </body>
 </html>`;
 
   const win = window.open('', '_blank');
   win.document.write(html);
   win.document.close();
-  setTimeout(() => win.print(), 900);
+  setTimeout(() => win.print(), 1000);
 }
 
-
-
-// -- PLANTILLAS --
-const PLANTILLAS_DEFAULT = {"sin_primer_contacto": "Hola {nombre}! Vi tu consulta. ¿Qué tipo de propiedad estás buscando? Cuéntame un poco más para ayudarte mejor.", "sin_seguimiento": "Hola {nombre}, ¿cómo estás? Quería saber si seguís buscando o si puedo ayudarte con algo nuevo que tengo.", "post_visita": "Hola {nombre}, ¿qué te pareció la propiedad que vimos? ¿Tenés alguna duda o querés ver algo más?", "enfriandose": "Hola {nombre}, hace un tiempo que no hablamos. ¿Seguís buscando? Tengo opciones nuevas que podrían interesarte.", "reactivado": "Hola {nombre}, qué bueno saber de vos! ¿En qué te puedo ayudar? Cuéntame qué estás buscando.", "sin_actividad": "Hola {nombre}, sé que hace mucho que no hablamos. Si seguís buscando, puedo ayudarte. Si no, no te molesto más."};
-const PLANTILLAS_LABELS = {"sin_primer_contacto": "⚡ Sin primer contacto (lead nuevo +24hs)", "sin_seguimiento": "🔔 Sin seguimiento (+5 días)", "post_visita": "🏠 Post-visita sin seguimiento", "enfriandose": "❄️ Lead enfriándose (+30 días)", "reactivado": "🔥 Lead reactivado", "sin_actividad": "💀 Sin actividad (+60 días)"};
-let plantillasData = {};
-
-async function loadPlantillas() {
-  const { data } = await sb.from('plantillas').select('*').eq('user_id', currentUser.id);
-  plantillasData = {};
-  (data||[]).forEach(p => plantillasData[p.clave] = p.mensaje);
-  Object.keys(PLANTILLAS_DEFAULT).forEach(k => {
-    if (!plantillasData[k]) plantillasData[k] = PLANTILLAS_DEFAULT[k];
-  });
-  renderPlantillasForm();
-}
-
-function renderPlantillasForm() {
-  const container = document.getElementById('plantillas-form');
-  if (!container) return;
-  container.innerHTML = Object.keys(PLANTILLAS_DEFAULT).map(k => `
-    <div style="margin-bottom:18px">
-      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)">${PLANTILLAS_LABELS[k]}</label>
-      <textarea id="pt-${k}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px">${plantillasData[k]||PLANTILLAS_DEFAULT[k]}</textarea>
-    </div>
-  `).join('');
-}
-
-async function savePlantillas() {
-  const keys = Object.keys(PLANTILLAS_DEFAULT);
-  for (const k of keys) {
-    const el = document.getElementById('pt-' + k);
-    if (!el) continue;
-    const msg = el.value.trim();
-    if (!msg) continue;
-    plantillasData[k] = msg;
-    const existing = await sb.from('plantillas').select('id').eq('user_id', currentUser.id).eq('clave', k).single();
-    if (existing.data) {
-      await sb.from('plantillas').update({ mensaje: msg }).eq('id', existing.data.id);
-    } else {
-      await sb.from('plantillas').insert([{ user_id: currentUser.id, clave: k, mensaje: msg }]);
-    }
-  }
-  toast('Plantillas guardadas!');
-}
-
-function getMensaje(clave, nombre) {
-  const plantilla = plantillasData[clave] || PLANTILLAS_DEFAULT[clave] || '';
-  return plantilla.replace(/\{nombre\}/g, nombre.split(' ')[0]);
-}
 
 // -- PROPIEDADES --
 let propsData = [];
