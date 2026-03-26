@@ -49,6 +49,32 @@ async function clearSession(telefono) {
   await sb.from('bot_sessions').update({ estado: null, contexto: null, updated_at: new Date().toISOString() }).eq('telefono', telefono);
 }
 
+
+async function getPlantillaEstado(userId, estado) {
+  const { data } = await sb.from('plantillas')
+    .select('mensaje')
+    .eq('user_id', userId)
+    .eq('clave', estado)
+    .eq('tipo', 'estado')
+    .single();
+  const defaults = {
+    'Nuevo': 'Hola {nombre}, vi tu consulta. Como te puedo ayudar?',
+    'Contactado': 'Hola {nombre}, como estas? Seguis buscando?',
+    'Interesado': 'Hola {nombre}! Tengo opciones que te pueden interesar. Te cuento?',
+    'Visita': 'Hola {nombre}, que te parecio la propiedad que vimos?',
+    'Propuesta': 'Hola {nombre}, como venimos con la propuesta?',
+    'Cerrado': 'Hola {nombre}, un placer haber trabajado juntos!',
+    'Frio': 'Hola {nombre}, hace tiempo que no hablamos. Seguis buscando?'
+  };
+  const plantilla = data?.mensaje || defaults[estado] || 'Hola {nombre}, como estas?';
+  return plantilla;
+}
+
+async function getPerfil(userId) {
+  const { data } = await sb.from('perfil_broker').select('nombre').eq('user_id', userId).single();
+  return data?.nombre?.split(' ')[0] || '';
+}
+
 async function getUserByPhone(phone) {
   const normalized = '+' + phone.replace('whatsapp:', '').replace(/\D/g, '');
   const { data } = await sb.from('broker_phones').select('user_id').eq('telefono', normalized).single();
@@ -274,10 +300,19 @@ module.exports = async function handler(req, res) {
     const lead = await findLead(userId, query);
     if (!lead) { await sendWA(from, `No encontre ningun lead con "${query}".`); return res.status(200).end(); }
     const dias = diasDesde(lead.ultimo_contacto);
+    const plantilla = await getPlantillaEstado(userId, lead.estado);
+    const brokerNombre = await getPerfil(userId);
+    const mensaje = plantilla
+      .replace(/{nombre}/g, lead.nombre.split(' ')[0])
+      .replace(/{broker}/g, brokerNombre);
+    const tel = lead.telefono ? lead.telefono.replace(/\D/g, '') : '';
+    const waLink = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}` : null;
     let msg = `${lead.nombre}\nEstado: ${lead.estado}\n`;
     if (lead.telefono) msg += `Tel: ${lead.telefono}\n`;
     if (lead.busca) msg += `Busca: ${lead.busca}\n`;
-    msg += `Ultimo contacto: hace ${dias} dia${dias !== 1 ? 's' : ''}`;
+    msg += `Ultimo contacto: hace ${dias} dia${dias !== 1 ? 's' : ''}\n\n`;
+    msg += `Mensaje sugerido:\n"${mensaje}"`;
+    if (waLink) msg += `\n\nEnviar por WhatsApp:\n${waLink}`;
     await sendWA(from, msg);
     return res.status(200).end();
   }
