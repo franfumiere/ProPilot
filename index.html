@@ -2148,6 +2148,46 @@ async function confirmarEliminarLead(id, nombre) {
   loadLeads();
 }
 
+
+// -- EDITAR LEAD --
+let _editLeadId = null;
+
+function openEditarLead(id) {
+  const l = leadsData.find(x => x.id === id);
+  if (!l) return;
+  _editLeadId = id;
+  document.getElementById('el-nombre').value = l.nombre || '';
+  document.getElementById('el-telefono').value = l.telefono || '';
+  document.getElementById('el-fuente').value = l.fuente || 'Otro';
+  document.getElementById('el-estado').value = l.estado || 'Nuevo';
+  document.getElementById('el-busca').value = l.busca || '';
+  document.getElementById('el-birthday').value = l.birthday || '';
+  document.getElementById('el-notas').value = l.notas || '';
+  openM('m-editar-lead');
+}
+
+async function saveEditarLead() {
+  if (!_editLeadId) return;
+  const nombre   = document.getElementById('el-nombre').value.trim();
+  if (!nombre) return toast('El nombre es obligatorio');
+  const telefono = document.getElementById('el-telefono').value.trim();
+  const fuente   = document.getElementById('el-fuente').value;
+  const estado   = document.getElementById('el-estado').value;
+  const busca    = document.getElementById('el-busca').value.trim();
+  const birthday = document.getElementById('el-birthday').value || null;
+  const notas    = document.getElementById('el-notas').value.trim();
+
+  const { error } = await sb.from('leads').update({
+    nombre, telefono, fuente, estado, busca, birthday, notas
+  }).eq('id', _editLeadId);
+
+  if (error) { toast('Error al guardar'); return; }
+  closeM('m-editar-lead');
+  toast('Lead actualizado');
+  await loadLeads();
+  openPanelLead(_editLeadId);
+}
+
 // -- START --
 init();
 </script>
