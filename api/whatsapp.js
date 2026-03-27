@@ -307,12 +307,11 @@ module.exports = async function handler(req, res) {
       .replace(/{broker}/g, brokerNombre);
     const tel = lead.telefono ? lead.telefono.replace(/\D/g, '') : '';
     const waLink = tel ? `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}` : null;
+    const telDisplay = lead.telefono ? `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}` : null;
     let msg = `${lead.nombre}\nEstado: ${lead.estado}\n`;
-    if (lead.telefono) msg += `Tel: ${lead.telefono}\n`;
+    if (telDisplay) msg += `Tel: ${telDisplay}\n`;
     if (lead.busca) msg += `Busca: ${lead.busca}\n`;
-    msg += `Ultimo contacto: hace ${dias} dia${dias !== 1 ? 's' : ''}\n\n`;
-    msg += `Mensaje sugerido:\n"${mensaje}"`;
-    if (waLink) msg += `\n\nEnviar por WhatsApp:\n${waLink}`;
+    msg += `Ultimo contacto: hace ${dias} dia${dias !== 1 ? 's' : ''}`;
     await sendWA(from, msg);
     return res.status(200).end();
   }
