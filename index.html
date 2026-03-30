@@ -709,6 +709,96 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
     </div>
   </div>
 </div>
+
+<!-- ONBOARDING WIZARD -->
+<div class="modal-ov" id="m-onboarding" style="z-index:2000;background:rgba(0,0,0,0.7)">
+  <div class="modal" style="max-width:500px;padding:0;overflow:hidden;border-radius:16px">
+    
+    <!-- Progress bar -->
+    <div style="height:4px;background:#eee">
+      <div id="ob-progress" style="height:4px;background:#c8f135;transition:width 0.3s;width:25%"></div>
+    </div>
+
+    <!-- Steps -->
+    <div id="ob-step-1" style="padding:32px">
+      <div style="font-size:28px;margin-bottom:8px">👋</div>
+      <h2 style="font-size:20px;margin-bottom:6px">Bienvenido a ProPilot</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:24px">Configuremos tu cuenta en 4 pasos. Solo tarda 2 minutos.</p>
+      <div class="fr"><label>Tu nombre completo *</label><input id="ob-nombre" placeholder="Ej: Franco Fumiere"></div>
+      <div class="fl">
+        <div class="fr"><label>Empresa / Inmobiliaria</label><input id="ob-empresa" placeholder="Ej: KZN Brokers"></div>
+        <div class="fr"><label>Teléfono profesional</label><input id="ob-telefono" placeholder="+54 11 1234-5678"></div>
+      </div>
+      <div class="fr"><label>Email profesional</label><input id="ob-email" placeholder="tu@email.com"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:24px">
+        <button class="btn btn-dark" onclick="obNext(1)">Siguiente →</button>
+      </div>
+    </div>
+
+    <div id="ob-step-2" style="padding:32px;display:none">
+      <div style="font-size:28px;margin-bottom:8px">📱</div>
+      <h2 style="font-size:20px;margin-bottom:6px">Activá el bot de WhatsApp</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">El bot te avisa qué leads necesitan atención y te deja gestionarlos sin abrir la app.</p>
+      <div class="fr">
+        <label>Tu número de WhatsApp *</label>
+        <input id="ob-whatsapp" placeholder="+5491112345678">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Con código de país, sin espacios. Ej: +5491112345678</div>
+      </div>
+      <div style="background:#f0f9f0;border:1px solid #b2e4c8;border-radius:10px;padding:14px;margin-top:16px;font-size:13px">
+        <strong>Para activar el bot:</strong><br>
+        1. Guardá el número <strong>+1 415 523 8886</strong> en tu WhatsApp<br>
+        2. Mandá el mensaje: <strong>join vast-sent</strong><br>
+        3. Listo — el bot ya puede escribirte
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:24px">
+        <button class="btn btn-ghost" onclick="obBack(2)">← Atrás</button>
+        <button class="btn btn-dark" onclick="obNext(2)">Siguiente →</button>
+      </div>
+    </div>
+
+    <div id="ob-step-3" style="padding:32px;display:none">
+      <div style="font-size:28px;margin-bottom:8px">🎯</div>
+      <h2 style="font-size:20px;margin-bottom:6px">Cargá tu primer lead</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Agregá un cliente que estés siguiendo ahora mismo.</p>
+      <div class="fr"><label>Nombre *</label><input id="ob-lead-nombre" placeholder="Ej: Juan Pérez"></div>
+      <div class="fl">
+        <div class="fr"><label>Teléfono</label><input id="ob-lead-tel" placeholder="+54 11 1234-5678"></div>
+        <div class="fr"><label>Qué busca</label><input id="ob-lead-busca" placeholder="Ej: 3 amb en Palermo"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:24px">
+        <button class="btn btn-ghost" onclick="obBack(3)">← Atrás</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="obNext(3, true)">Saltar</button>
+          <button class="btn btn-dark" onclick="obNext(3)">Siguiente →</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ob-step-4" style="padding:32px;display:none">
+      <div style="font-size:28px;margin-bottom:8px">✉️</div>
+      <h2 style="font-size:20px;margin-bottom:6px">Tus mensajes de seguimiento</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">ProPilot sugiere un mensaje según el estado de cada lead. Podés editarlos cuando quieras en Configuración.</p>
+      <div style="background:#f8f8f8;border-radius:10px;padding:14px;font-size:13px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <strong>Nuevo lead</strong><span style="color:var(--muted)">Se usa cuando el lead acaba de aparecer</span>
+        </div>
+        <div style="color:#555;font-style:italic">"Hola {nombre}, vi tu consulta. Como te puedo ayudar?"</div>
+      </div>
+      <div style="background:#f8f8f8;border-radius:10px;padding:14px;font-size:13px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <strong>Sin respuesta</strong><span style="color:var(--muted)">Cuando hay +5 días sin contacto</span>
+        </div>
+        <div style="color:#555;font-style:italic">"Hola {nombre}, como estas? Seguis buscando?"</div>
+      </div>
+      <p style="font-size:12px;color:var(--muted)">Podés personalizar todos los mensajes desde Configuración → Plantillas.</p>
+      <div style="display:flex;justify-content:space-between;margin-top:24px">
+        <button class="btn btn-ghost" onclick="obBack(4)">← Atrás</button>
+        <button class="btn btn-dark" onclick="obFinish()">Empezar a usar ProPilot →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
 <div class="toast" id="toastEl"></div>
 
 <script>
@@ -815,67 +905,7 @@ function enterApp() {
   loadProps();
   loadPlantillas();
   loadPerfil();
-}
-
-
-// -- PLANTILLAS --
-const PLANTILLAS_ESTADO_DEFAULT = {"Nuevo": "Hola {nombre}, vi tu consulta. Soy {broker}. Como te puedo ayudar?", "Contactado": "Hola {nombre}, como estas? Queria saber si seguis buscando o si puedo ayudarte con algo nuevo.", "Interesado": "Hola {nombre}! Tengo algunas opciones que podrian interesarte. Te cuento?", "Visita": "Hola {nombre}, que te parecio la propiedad que vimos? Tenes alguna duda o queres ver algo mas?", "Propuesta": "Hola {nombre}, como venimos con la propuesta? Cualquier duda que tengas, estoy.", "Cerrado": "Hola {nombre}, un placer haber trabajado juntos! Cualquier cosa que necesites, me avisas.", "Frio": "Hola {nombre}, hace tiempo que no hablamos. Seguis buscando? Tengo opciones nuevas."};
-let plantillasData = {};
-
-async function loadPlantillas() {
-  const { data } = await sb.from('plantillas').select('*').eq('user_id', currentUser.id).eq('tipo', 'estado');
-  plantillasData = {};
-  (data||[]).forEach(p => plantillasData[p.clave] = p.mensaje);
-  // Fill defaults for missing
-  Object.keys(PLANTILLAS_ESTADO_DEFAULT).forEach(k => {
-    if (!plantillasData[k]) plantillasData[k] = PLANTILLAS_ESTADO_DEFAULT[k];
-  });
-  renderPlantillasForm();
-}
-
-function renderPlantillasForm() {
-  const container = document.getElementById('plantillas-form');
-  if (!container) return;
-  const estados = ["Nuevo", "Contactado", "Interesado", "Visita", "Propuesta", "Cerrado", "Frio"];
-  container.innerHTML = estados.map(estado => `
-    <div style="margin-bottom:18px">
-      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--text)">${estado}</label>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Usa {nombre} para el nombre del lead y {broker} para tu nombre</div>
-      <textarea id="pt-${estado}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px">${plantillasData[estado]||PLANTILLAS_ESTADO_DEFAULT[estado]||''}</textarea>
-    </div>
-  `).join('');
-}
-
-async function savePlantillas() {
-  const estados = ["Nuevo", "Contactado", "Interesado", "Visita", "Propuesta", "Cerrado", "Frio"];
-  for (const estado of estados) {
-    const el = document.getElementById('pt-' + estado);
-    if (!el) continue;
-    const msg = el.value.trim();
-    if (!msg) continue;
-    plantillasData[estado] = msg;
-    const existing = await sb.from('plantillas').select('id').eq('user_id', currentUser.id).eq('clave', estado).eq('tipo', 'estado').single();
-    if (existing.data) {
-      await sb.from('plantillas').update({ mensaje: msg }).eq('id', existing.data.id);
-    } else {
-      await sb.from('plantillas').insert([{ user_id: currentUser.id, clave: estado, mensaje: msg, tipo: 'estado' }]);
-    }
-  }
-  toast('Plantillas guardadas!');
-}
-
-function getMensaje(clave, nombre) {
-  // Support both estado keys and old copilot keys
-  const plantilla = plantillasData[clave] || PLANTILLAS_ESTADO_DEFAULT[clave] || '';
-  const brokerNombre = perfilBroker?.nombre?.split(' ')[0] || 'el broker';
-  return plantilla
-    .replace(/\{nombre\}/g, nombre.split(' ')[0])
-    .replace(/\{broker\}/g, brokerNombre);
-}
-
-function getMensajePorEstado(lead) {
-  const estado = lead.estado || 'Nuevo';
-  return getMensaje(estado, lead.nombre);
+  checkOnboarding();
 }
 
 // -- LEADS --
@@ -1373,7 +1403,7 @@ function openPanelLead(id) {
   document.getElementById('p-name').textContent = l.nombre;
   document.getElementById('p-sub').textContent = (l.fuente||'') + ' · ' + timeSince(l.created_at);
   document.getElementById('p-quick').innerHTML = `
-    <a class="btn btn-dark btn-sm" href="https://wa.me/${tel}?text=${encodeURIComponent(getMensajePorEstado(l))}" target="_blank" onclick="registrarContactoRapido('${l.id}','whatsapp')">💬 Escribir</a>
+    <a class="btn btn-dark btn-sm" href="${wa}" target="_blank" onclick="registrarContactoRapido('${l.id}','whatsapp')">💬 Escribir</a>
     <a class="btn btn-ghost btn-sm" href="${call}" onclick="registrarContactoRapido('${l.id}','llamada')">📞 Llamar</a>
     <button class="btn btn-ghost btn-sm" onclick="openStatusRec('${l.id}','${l.nombre}')">Mover estado</button>
     <button class="btn btn-ghost btn-sm" onclick="openContactoModal('${l.id}','${l.nombre}')">+ Registrar</button>
@@ -2193,6 +2223,79 @@ async function confirmarEliminarLead(id, nombre) {
   loadLeads();
 }
 
+
+
+// -- ONBOARDING --
+async function checkOnboarding() {
+  // Check if broker has already completed onboarding (has perfil with nombre)
+  const { data } = await sb.from('perfil_broker').select('nombre').eq('user_id', currentUser.id).single();
+  if (!data || !data.nombre) {
+    document.getElementById('m-onboarding').style.display = 'flex';
+  }
+}
+
+function obShowStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById('ob-step-' + i);
+    if (el) el.style.display = i === n ? 'block' : 'none';
+  });
+  document.getElementById('ob-progress').style.width = (n * 25) + '%';
+}
+
+function obBack(currentStep) {
+  obShowStep(currentStep - 1);
+}
+
+async function obNext(step, skip = false) {
+  if (step === 1) {
+    const nombre = document.getElementById('ob-nombre').value.trim();
+    if (!nombre) return toast('El nombre es obligatorio');
+    const empresa  = document.getElementById('ob-empresa').value.trim();
+    const telefono = document.getElementById('ob-telefono').value.trim();
+    const email    = document.getElementById('ob-email').value.trim();
+    // Save perfil
+    const existing = await sb.from('perfil_broker').select('id').eq('user_id', currentUser.id).single();
+    if (existing.data) {
+      await sb.from('perfil_broker').update({ nombre, empresa, telefono, email }).eq('id', existing.data.id);
+    } else {
+      await sb.from('perfil_broker').insert([{ user_id: currentUser.id, nombre, empresa, telefono, email }]);
+    }
+    perfilBroker = { nombre, empresa, telefono, email };
+    obShowStep(2);
+  } else if (step === 2) {
+    const whatsapp = document.getElementById('ob-whatsapp').value.trim();
+    if (!whatsapp) return toast('Ingresá tu número de WhatsApp');
+    const tel = whatsapp.startsWith('+') ? whatsapp : '+' + whatsapp;
+    // Save whatsapp in perfil and broker_phones
+    await sb.from('perfil_broker').update({ whatsapp: tel }).eq('user_id', currentUser.id);
+    const existing2 = await sb.from('broker_phones').select('id').eq('user_id', currentUser.id).single();
+    if (existing2.data) {
+      await sb.from('broker_phones').update({ telefono: tel }).eq('id', existing2.data.id);
+    } else {
+      await sb.from('broker_phones').insert([{ user_id: currentUser.id, telefono: tel }]);
+    }
+    perfilBroker.whatsapp = tel;
+    obShowStep(3);
+  } else if (step === 3) {
+    if (!skip) {
+      const nombre = document.getElementById('ob-lead-nombre').value.trim();
+      if (!nombre) return toast('Ingresá el nombre del lead');
+      const telefono = document.getElementById('ob-lead-tel').value.trim();
+      const busca    = document.getElementById('ob-lead-busca').value.trim();
+      await sb.from('leads').insert([{
+        user_id: currentUser.id, nombre, telefono, busca,
+        fuente: 'Manual', estado: 'Nuevo', ultimo_contacto: new Date().toISOString()
+      }]);
+    }
+    obShowStep(4);
+  }
+}
+
+async function obFinish() {
+  document.getElementById('m-onboarding').style.display = 'none';
+  await loadLeads();
+  toast('Bienvenido a ProPilot!');
+}
 
 // -- EDITAR LEAD --
 let _editLeadId = null;
