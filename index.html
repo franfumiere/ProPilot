@@ -2228,9 +2228,11 @@ async function confirmarEliminarLead(id, nombre) {
 // -- ONBOARDING --
 async function checkOnboarding() {
   // Check if broker has already completed onboarding (has perfil with nombre)
-  const { data } = await sb.from('perfil_broker').select('nombre').eq('user_id', currentUser.id).single();
-  if (!data || !data.nombre) {
+  const { data, error } = await sb.from('perfil_broker').select('nombre').eq('user_id', currentUser.id).single();
+  // Show onboarding if no profile exists OR profile has no nombre
+  if (error || !data || !data.nombre) {
     document.getElementById('m-onboarding').style.display = 'flex';
+    obShowStep(1);
   }
 }
 
