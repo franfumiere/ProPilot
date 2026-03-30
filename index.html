@@ -908,6 +908,64 @@ function enterApp() {
   checkOnboarding();
 }
 
+
+// -- PLANTILLAS --
+const PLANTILLAS_ESTADO_DEFAULT = {"Nuevo": "Hola {nombre}, vi tu consulta. Soy {broker}. Como te puedo ayudar?", "Contactado": "Hola {nombre}, como estas? Queria saber si seguis buscando o si puedo ayudarte con algo nuevo.", "Interesado": "Hola {nombre}! Tengo algunas opciones que podrian interesarte. Te cuento?", "Visita": "Hola {nombre}, que te parecio la propiedad que vimos? Tenes alguna duda o queres ver algo mas?", "Propuesta": "Hola {nombre}, como venimos con la propuesta? Cualquier duda que tengas, estoy.", "Cerrado": "Hola {nombre}, un placer haber trabajado juntos! Cualquier cosa que necesites, me avisas.", "Frio": "Hola {nombre}, hace tiempo que no hablamos. Seguis buscando? Tengo opciones nuevas."};
+let plantillasData = {};
+
+async function loadPlantillas() {
+  const { data } = await sb.from('plantillas').select('*').eq('user_id', currentUser.id).eq('tipo', 'estado');
+  plantillasData = {};
+  (data||[]).forEach(p => plantillasData[p.clave] = p.mensaje);
+  Object.keys(PLANTILLAS_ESTADO_DEFAULT).forEach(k => {
+    if (!plantillasData[k]) plantillasData[k] = PLANTILLAS_ESTADO_DEFAULT[k];
+  });
+  renderPlantillasForm();
+}
+
+function renderPlantillasForm() {
+  const container = document.getElementById('plantillas-form');
+  if (!container) return;
+  const estados = ["Nuevo", "Contactado", "Interesado", "Visita", "Propuesta", "Cerrado", "Frio"];
+  container.innerHTML = estados.map(estado => `
+    <div style="margin-bottom:18px">
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--text)">${estado}</label>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Usa {nombre} para el nombre del lead y {broker} para tu nombre</div>
+      <textarea id="pt-${estado}" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;min-height:70px">${plantillasData[estado]||PLANTILLAS_ESTADO_DEFAULT[estado]||''}</textarea>
+    </div>
+  `).join('');
+}
+
+async function savePlantillas() {
+  const estados = ["Nuevo", "Contactado", "Interesado", "Visita", "Propuesta", "Cerrado", "Frio"];
+  for (const estado of estados) {
+    const el = document.getElementById('pt-' + estado);
+    if (!el) continue;
+    const msg = el.value.trim();
+    if (!msg) continue;
+    plantillasData[estado] = msg;
+    const existing = await sb.from('plantillas').select('id').eq('user_id', currentUser.id).eq('clave', estado).eq('tipo', 'estado').single();
+    if (existing.data) {
+      await sb.from('plantillas').update({ mensaje: msg }).eq('id', existing.data.id);
+    } else {
+      await sb.from('plantillas').insert([{ user_id: currentUser.id, clave: estado, mensaje: msg, tipo: 'estado' }]);
+    }
+  }
+  toast('Plantillas guardadas!');
+}
+
+function getMensaje(clave, nombre) {
+  const plantilla = plantillasData[clave] || PLANTILLAS_ESTADO_DEFAULT[clave] || '';
+  const brokerNombre = perfilBroker?.nombre?.split(' ')[0] || '';
+  return plantilla
+    .replace(/\{nombre\}/g, nombre.split(' ')[0])
+    .replace(/\{broker\}/g, brokerNombre);
+}
+
+function getMensajePorEstado(lead) {
+  return getMensaje(lead.estado || 'Nuevo', lead.nombre);
+}
+
 // -- LEADS --
 async function loadLeads() {
   const [leadsRes] = await Promise.all([
